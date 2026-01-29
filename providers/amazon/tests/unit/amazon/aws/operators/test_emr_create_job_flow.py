@@ -26,7 +26,6 @@ import pytest
 from botocore.waiter import Waiter
 from jinja2 import StrictUndefined
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.providers.amazon.aws.operators.emr import EmrCreateJobFlowOperator
 from airflow.providers.amazon.aws.triggers.emr import EmrCreateJobFlowTrigger
@@ -254,10 +253,13 @@ class TestEmrCreateJobFlowOperator:
     def test_template_fields(self):
         validate_template_fields(self.operator)
 
-    def test_wait_policy_deprecation_warning(self):
-        """Test that using wait_policy raises a deprecation warning."""
-        with pytest.warns(AirflowProviderDeprecationWarning, match="`wait_policy` parameter is deprecated"):
-            EmrCreateJobFlowOperator(
-                task_id=TASK_ID,
-                wait_policy=WaitPolicy.WAIT_FOR_COMPLETION,
-            )
+    def test_wait_policy_behavior(self):
+        """Test that using wait_policy sets the operator attributes correctly."""
+        op = EmrCreateJobFlowOperator(
+            task_id=TASK_ID,
+            wait_policy=WaitPolicy.WAIT_FOR_COMPLETION,
+        )
+        # wait_policy should be stored on the instance
+        assert getattr(op, "wait_policy") == WaitPolicy.WAIT_FOR_COMPLETION
+        # passing WAIT_FOR_COMPLETION should enable wait_for_completion
+        assert op.wait_for_completion is True
