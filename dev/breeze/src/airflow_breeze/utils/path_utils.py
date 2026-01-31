@@ -132,7 +132,7 @@ def reinstall_if_setup_changed() -> bool:
     :return: True if warning was printed.
     """
 
-    timeout_seconds = int(os.environ.get("BREEZE_SELF_UPGRADE_TIMEOUT", "3"))
+    timeout_seconds = int(os.environ.get("BREEZE_SELF_UPGRADE_TIMEOUT", "10"))
     try:
         res = subprocess.run(
             ["uv", "tool", "upgrade", "apache-airflow-breeze"],
