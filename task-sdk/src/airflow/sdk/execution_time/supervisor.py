@@ -296,7 +296,7 @@ def block_orm_access():
         to_block = frozenset(("engine", "async_engine", "Session", "AsyncSession", "NonScopedSession"))
         for attr in to_block:
             if hasattr(settings, attr):
-                delattr(settings, attr)
+                setattr(settings, attr, None)
 
         def configure_orm(*args, **kwargs):
             raise RuntimeError("Database access is disabled from Dags and Triggers")
