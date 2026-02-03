@@ -1,0 +1,82 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+---
+name: Label tests-only PRs
+
+on:  # yamllint disable-line rule:truthy
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  label-tests-only:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check if all files are tests and add label
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea  # v7.0.1
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            // Get list of changed files in the PR
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: context.issue.number,
+            });
+
+            const changedFiles = files.map(file => file.filename);
+            console.log(`Found ${changedFiles.length} changed files.`);
+
+            const testPatterns = [
+              /^airflow-core\/tests\//,
+              /^task-sdk\/tests\//,
+              /^airflow-ctl-tests\//,
+              /^airflow-e2e-tests\//,
+              /^clients\/.*\/test.*\.py$/,
+              /^devel-common\/tests\//,
+              /^dev\/breeze\/tests\//,
+              /^docker-tests\//,
+              /^helm-tests\//,
+              /^kubernetes-tests\//,
+              /^task-sdk-integration-tests\//,
+              /^providers\/.*\/tests\//
+            ];
+
+            const allTests = changedFiles.every(file =>
+              testPatterns.some(pattern => pattern.test(file))
+            );
+
+            if (allTests && changedFiles.length > 0) {
+              console.log('All changed files are tests. Adding kind:tests label.');
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                labels: ['kind:tests']
+              });
+            } else {
+              console.log('PR contains non-test files or no files changed.');
+              changedFiles.forEach(file => {
+                const isTest = testPatterns.some(pattern => pattern.test(file));
+                if (!isTest) {
+                  console.log(`  Non-test file: ${file}`);
+                }
+              });
+            }
