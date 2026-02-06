@@ -554,20 +554,36 @@ class DagRunOperations(BaseOperations):
 
     def list(
         self,
-        dag_id: str,
-        start_date: datetime.datetime,
-        end_date: datetime.datetime,
-        state: str,
-        limit: int,
+        start_date: datetime.datetime | None = None,
+        end_date: datetime.datetime | None = None,
+        state: str | None = None,
+        limit: int | None = None,
+        dag_id: str | None = None,
     ) -> DAGRunCollectionResponse | ServerResponseError:
-        """List all dag runs."""
-        params = {
-            "start_date": start_date,
-            "end_date": end_date,
-            "state": state,
-            "limit": limit,
-            "dag_id": dag_id,
-        }
+        """
+        List all dag runs.
+
+        Args:
+            start_date: Filter dag runs by start date (optional)
+            end_date: Filter dag runs by end date (optional)
+            state: Filter dag runs by state (optional)
+            limit: Limit the number of results (optional)
+            dag_id: The DAG ID to filter by. If None, retrieves dag runs for all DAGs (using "~").
+        """
+        # Use "~" for all DAGs if dag_id is not specified
+        if not dag_id:
+            dag_id = "~"
+
+        params: dict[str, object] = {}
+        if start_date is not None:
+            params["start_date"] = start_date
+        if end_date is not None:
+            params["end_date"] = end_date
+        if state is not None:
+            params["state"] = state
+        if limit is not None:
+            params["limit"] = limit
+
         return super().execute_list(
             path=f"/dags/{dag_id}/dagRuns", data_model=DAGRunCollectionResponse, params=params
         )
