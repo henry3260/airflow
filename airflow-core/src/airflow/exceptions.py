@@ -39,7 +39,7 @@ try:
         AirflowTimetableInvalid as AirflowTimetableInvalid,
         TaskNotFound as TaskNotFound,
     )
-except ModuleNotFoundError:
+except (ModuleNotFoundError, ImportError):
     # When _AIRFLOW__AS_LIBRARY is set, airflow.sdk may not be installed.
     # In that case, we define fallback exception classes that mirror the SDK ones.
     class AirflowException(Exception):  # type: ignore[no-redef]
