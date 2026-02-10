@@ -101,22 +101,22 @@ def get_permissions(*, order_by: str = "action", limit: int, offset: int | None 
     security_manager = cast("FabAuthManager", get_auth_manager()).security_manager
     session = security_manager.session
     total_entries = session.scalars(select(func.count(Action.id))).one()
-    
+
     order_direction = desc if order_by.startswith("-") else asc
     order_param = order_by.strip("-")
-    
+
     # Map order_param to Action model attributes
     to_replace = {"action_id": "id", "action": "name"}
     order_column_name = to_replace.get(order_param, order_param)
     allowed_sort_attrs = ["action", "action_id"]
-    
+
     if order_param not in allowed_sort_attrs:
         raise BadRequest(
             detail=f"Ordering with '{order_by}' is disallowed or the attribute does not exist on the model"
         )
-    
+
     sort_column = getattr(Action, order_column_name)
-    
+
     query = select(Action).order_by(order_direction(sort_column))
     actions = session.scalars(query.offset(offset).limit(limit)).all()
     return action_collection_schema.dump(ActionCollection(actions=actions, total_entries=total_entries))

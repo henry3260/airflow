@@ -384,7 +384,7 @@ class TestRolesService:
         fab_auth_manager = MagicMock()
         fab_auth_manager.security_manager = MagicMock(session=session)
         get_fab_auth_manager.return_value = fab_auth_manager
-        
+
         build_ordering.return_value = column("name").asc()
 
         out = FABAuthManagerRoles.get_permissions(order_by="action", limit=10, offset=0)
@@ -405,7 +405,7 @@ class TestRolesService:
         fab_auth_manager = MagicMock()
         fab_auth_manager.security_manager = MagicMock(session=session)
         get_fab_auth_manager.return_value = fab_auth_manager
-        
+
         build_ordering.return_value = column("name").asc()
 
         out = FABAuthManagerRoles.get_permissions(order_by="action", limit=10, offset=0)
@@ -432,7 +432,7 @@ class TestRolesService:
         fab_auth_manager = MagicMock()
         fab_auth_manager.security_manager = MagicMock(session=session)
         get_fab_auth_manager.return_value = fab_auth_manager
-        
+
         build_ordering.return_value = column("name").asc()
 
         out = FABAuthManagerRoles.get_permissions(order_by="action", limit=10, offset=0)

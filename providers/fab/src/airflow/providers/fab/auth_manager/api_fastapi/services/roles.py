@@ -166,11 +166,11 @@ class FABAuthManagerRoles:
     def get_permissions(cls, *, order_by: str, limit: int, offset: int) -> PermissionCollectionResponse:
         security_manager = get_fab_auth_manager().security_manager
         session = security_manager.session
-        
+
         total_entries = session.scalars(select(func.count(Permission.id))).one()
-        
+
         ordering = build_ordering(order_by, allowed={"action": Action.name, "resource": Resource.name})
-        
+
         query = (
             select(Permission)
             .options(joinedload(Permission.action), joinedload(Permission.resource))
