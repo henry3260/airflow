@@ -370,7 +370,8 @@ class TestRolesService:
             FABAuthManagerRoles.patch_role(body=body, name="viewer")
         assert ex.value.status_code == 404
 
-    def test_get_permissions_success(self, get_fab_auth_manager):
+    @patch("airflow.providers.fab.auth_manager.api_fastapi.services.roles.build_ordering")
+    def test_get_permissions_success(self, build_ordering, get_fab_auth_manager):
         session = MagicMock()
         perm_obj = types.SimpleNamespace(
             action=types.SimpleNamespace(name="can_read"),
@@ -384,7 +385,9 @@ class TestRolesService:
         fab_auth_manager.security_manager = MagicMock(session=session)
         get_fab_auth_manager.return_value = fab_auth_manager
 
-        out = FABAuthManagerRoles.get_permissions(limit=10, offset=0)
+        build_ordering.return_value = column("name").asc()
+
+        out = FABAuthManagerRoles.get_permissions(order_by="action", limit=10, offset=0)
         assert isinstance(out, PermissionCollectionResponse)
         assert out.total_entries == 1
         assert len(out.permissions) == 1
@@ -392,7 +395,8 @@ class TestRolesService:
             action=Action(name="can_read"), resource=Resource(name="DAG")
         )
 
-    def test_get_permissions_empty(self, get_fab_auth_manager):
+    @patch("airflow.providers.fab.auth_manager.api_fastapi.services.roles.build_ordering")
+    def test_get_permissions_empty(self, build_ordering, get_fab_auth_manager):
         session = MagicMock()
         session.scalars.side_effect = [
             types.SimpleNamespace(one=lambda: 0),
@@ -402,11 +406,14 @@ class TestRolesService:
         fab_auth_manager.security_manager = MagicMock(session=session)
         get_fab_auth_manager.return_value = fab_auth_manager
 
-        out = FABAuthManagerRoles.get_permissions(limit=10, offset=0)
+        build_ordering.return_value = column("name").asc()
+
+        out = FABAuthManagerRoles.get_permissions(order_by="action", limit=10, offset=0)
         assert out.total_entries == 0
         assert out.permissions == []
 
-    def test_get_permissions_with_multiple(self, get_fab_auth_manager):
+    @patch("airflow.providers.fab.auth_manager.api_fastapi.services.roles.build_ordering")
+    def test_get_permissions_with_multiple(self, build_ordering, get_fab_auth_manager):
         session = MagicMock()
         perm_objs = [
             types.SimpleNamespace(
@@ -426,7 +433,9 @@ class TestRolesService:
         fab_auth_manager.security_manager = MagicMock(session=session)
         get_fab_auth_manager.return_value = fab_auth_manager
 
-        out = FABAuthManagerRoles.get_permissions(limit=10, offset=0)
+        build_ordering.return_value = column("name").asc()
+
+        out = FABAuthManagerRoles.get_permissions(order_by="action", limit=10, offset=0)
         assert isinstance(out, PermissionCollectionResponse)
         assert out.total_entries == 2
         assert len(out.permissions) == 2
