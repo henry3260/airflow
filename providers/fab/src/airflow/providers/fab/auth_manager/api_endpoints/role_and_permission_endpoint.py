@@ -102,7 +102,7 @@ def get_permissions(*, order_by: str = "action", limit: int, offset: int | None 
     session = security_manager.session
     total_entries = session.scalars(select(func.count(Action.id))).one()
     
-    direction = desc if order_by.startswith("-") else asc
+    order_direction = desc if order_by.startswith("-") else asc
     order_param = order_by.strip("-")
     
     # Map order_param to Action model attributes
@@ -117,7 +117,7 @@ def get_permissions(*, order_by: str = "action", limit: int, offset: int | None 
     
     sort_column = getattr(Action, order_column_name)
     
-    query = select(Action).order_by(direction(sort_column))
+    query = select(Action).order_by(order_direction(sort_column))
     actions = session.scalars(query.offset(offset).limit(limit)).all()
     return action_collection_schema.dump(ActionCollection(actions=actions, total_entries=total_entries))
 

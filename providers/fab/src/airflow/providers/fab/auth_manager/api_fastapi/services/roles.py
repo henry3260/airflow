@@ -173,8 +173,6 @@ class FABAuthManagerRoles:
         
         query = (
             select(Permission)
-            .join(Permission.action)
-            .join(Permission.resource)
             .options(joinedload(Permission.action), joinedload(Permission.resource))
             .order_by(ordering)
             .offset(offset)
