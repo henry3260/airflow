@@ -580,7 +580,7 @@ class TestRoles:
             resp = test_client.get("/fab/v1/permissions")
             assert resp.status_code == 200
             assert resp.json() == dummy.model_dump(by_alias=True)
-            mock_permissions.get_permissions.assert_called_once_with(limit=100, offset=0)
+            mock_permissions.get_permissions.assert_called_once_with(order_by="action", limit=100, offset=0)
 
     @patch("airflow.providers.fab.auth_manager.api_fastapi.routes.roles.FABAuthManagerRoles")
     @patch("airflow.providers.fab.auth_manager.api_fastapi.security.get_auth_manager")

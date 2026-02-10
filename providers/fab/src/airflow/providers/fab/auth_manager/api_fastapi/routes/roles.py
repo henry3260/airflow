@@ -151,9 +151,10 @@ def patch_role(
     dependencies=[Depends(requires_fab_custom_view("GET", permissions.RESOURCE_ROLE))],
 )
 def get_permissions(
+    order_by: str = Query("action", description="Field to order by. Prefix with '-' for descending."),
     limit: int = Depends(get_effective_limit()),
     offset: int = Query(0, ge=0, description="Number of items to skip before starting to collect results."),
 ):
     """List all action-resource (permission) pairs."""
     with get_application_builder():
-        return FABAuthManagerRoles.get_permissions(limit=limit, offset=offset)
+        return FABAuthManagerRoles.get_permissions(order_by=order_by, limit=limit, offset=offset)
