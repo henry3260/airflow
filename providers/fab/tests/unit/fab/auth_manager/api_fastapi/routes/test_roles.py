@@ -599,3 +599,43 @@ class TestRoles:
             resp = test_client.get("/fab/v1/permissions")
             assert resp.status_code == 403
             mock_permissions.get_permissions.assert_not_called()
+
+    @patch("airflow.providers.fab.auth_manager.api_fastapi.routes.roles.FABAuthManagerRoles")
+    @patch("airflow.providers.fab.auth_manager.api_fastapi.security.get_auth_manager")
+    @patch(
+        "airflow.providers.fab.auth_manager.api_fastapi.routes.roles.get_application_builder",
+        return_value=_noop_cm(),
+    )
+    @patch("airflow.providers.fab.auth_manager.api_fastapi.parameters.conf")
+    def test_get_permissions_with_order_by(
+        self,
+        conf_mock,
+        mock_get_application_builder,
+        mock_get_auth_manager,
+        mock_permissions,
+        test_client,
+        as_user,
+    ):
+        conf_mock.getint.side_effect = lambda section, option: {
+            "maximum_page_limit": 100,
+            "fallback_page_limit": 25,
+        }[option]
+
+        mgr = MagicMock()
+        mgr.is_authorized_custom_view.return_value = True
+        mock_get_auth_manager.return_value = mgr
+
+        dummy = PermissionCollectionResponse(
+            permissions=[
+                ActionResource(action=Action(name="can_edit"), resource=Resource(name="DAG")),
+                ActionResource(action=Action(name="can_read"), resource=Resource(name="DAG")),
+            ],
+            total_entries=2,
+        )
+        mock_permissions.get_permissions.return_value = dummy
+
+        with as_user():
+            resp = test_client.get("/fab/v1/permissions", params={"order_by": "-action", "limit": 50, "offset": 10})
+            assert resp.status_code == 200
+            assert resp.json() == dummy.model_dump(by_alias=True)
+            mock_permissions.get_permissions.assert_called_once_with(order_by="-action", limit=50, offset=10)
