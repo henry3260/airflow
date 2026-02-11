@@ -103,7 +103,7 @@ const runColumns = (translate: TFunction, dagId?: string): Array<ColumnDef<DAGRu
       row: {
         original: { state },
       },
-    }) => <StateBadge state={state}>{state}</StateBadge>,
+    }) => <StateBadge state={state}>{translate(`common:states.${state}`)}</StateBadge>,
     header: () => translate("state"),
   },
   {
@@ -111,7 +111,7 @@ const runColumns = (translate: TFunction, dagId?: string): Array<ColumnDef<DAGRu
     cell: ({ row: { original } }) => (
       <HStack>
         <RunTypeIcon runType={original.run_type} />
-        <Text>{original.run_type}</Text>
+        <Text>{translate(`common:runTypes.${original.run_type}`)}</Text>
       </HStack>
     ),
     enableSorting: false,
@@ -163,9 +163,9 @@ const runColumns = (translate: TFunction, dagId?: string): Array<ColumnDef<DAGRu
     accessorKey: "actions",
     cell: ({ row }) => (
       <Flex justifyContent="end">
-        <ClearRunButton dagRun={row.original} withText={false} />
-        <MarkRunAsButton dagRun={row.original} withText={false} />
-        <DeleteRunButton dagRun={row.original} withText={false} />
+        <ClearRunButton dagRun={row.original} />
+        <MarkRunAsButton dagRun={row.original} />
+        <DeleteRunButton dagRun={row.original} />
       </Flex>
     ),
     enableSorting: false,
@@ -232,21 +232,24 @@ export const DagRuns = () => {
     },
     undefined,
     {
+      placeholderData: (prev) => prev,
       refetchInterval: (query) =>
         query.state.data?.dag_runs.some((run) => isStatePending(run.state)) ? refetchInterval : false,
     },
   );
 
+  const columns = runColumns(translate, dagId);
+
   return (
     <>
       <DagRunsFilters dagId={dagId} />
       <DataTable
-        columns={runColumns(translate, dagId)}
+        columns={columns}
         data={data?.dag_runs ?? []}
         errorMessage={<ErrorAlert error={error} />}
         initialState={tableURLState}
         isLoading={isLoading}
-        modelName={translate("common:dagRun_other")}
+        modelName="common:dagRun"
         onStateChange={setTableURLState}
         total={data?.total_entries}
       />

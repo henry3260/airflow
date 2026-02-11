@@ -20,7 +20,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
-from airflow.utils.types import NOTSET, ArgNotSet
+from airflow.providers.amazon.version_compat import NOTSET, ArgNotSet, is_arg_set
 
 if TYPE_CHECKING:
     from airflow.sdk.execution_time.secrets_masker import mask_secret
@@ -71,9 +71,9 @@ class SsmHook(AwsBaseHook):
                 mask_secret(value)
             return value
         except self.conn.exceptions.ParameterNotFound:
-            if isinstance(default, ArgNotSet):
-                raise
-            return default
+            if is_arg_set(default):
+                return default
+            raise
 
     def get_command_invocation(self, command_id: str, instance_id: str) -> dict:
         """
@@ -99,3 +99,25 @@ class SsmHook(AwsBaseHook):
         :return: Response from SSM list_command_invocations API.
         """
         return self.conn.list_command_invocations(CommandId=command_id)
+
+    @staticmethod
+    def is_aws_level_failure(status: str) -> bool:
+        """
+        Check if a command status represents an AWS-level failure.
+
+        AWS-level failures are service-level issues that should always raise exceptions,
+        as opposed to command-level failures (non-zero exit codes) which may be tolerated
+        depending on the fail_on_nonzero_exit parameter.
+
+        According to AWS SSM documentation, the possible statuses are:
+        Pending, InProgress, Delayed, Success, Cancelled, TimedOut, Failed, Cancelling
+
+        AWS-level failures are:
+        - Cancelled: Command was cancelled before completion
+        - TimedOut: Command exceeded the timeout period
+        - Cancelling: Command is in the process of being cancelled
+
+        :param status: The command invocation status from SSM.
+        :return: True if the status represents an AWS-level failure, False otherwise.
+        """
+        return status in ("Cancelled", "TimedOut", "Cancelling")

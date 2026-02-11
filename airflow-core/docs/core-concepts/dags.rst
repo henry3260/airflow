@@ -551,6 +551,9 @@ A TaskGroup can be used to organize tasks into hierarchical groups in Graph view
 
 Tasks in TaskGroups live on the same original Dag, and honor all the Dag settings and pool configurations.
 
+.. seealso::
+   API reference for :class:`~airflow.sdk.TaskGroup` and :class:`~airflow.sdk.task_group`
+
 .. image:: /img/ui-light/task_group.gif
 
 Dependency relationships can be applied across all tasks in a TaskGroup with the ``>>`` and ``<<`` operators. For example, the following code puts ``task1`` and ``task2`` in TaskGroup ``group1`` and then puts both tasks upstream of ``task3``:
@@ -768,7 +771,7 @@ relationships, dependencies between Dags are a bit more complex. In general, the
 in which one Dag can depend on another:
 
 - triggering - :class:`~airflow.providers.standard.operators.trigger_dagrun.TriggerDagRunOperator`
-- waiting - :class:`~airflow.providers.standard.sensors.external_task_sensor.ExternalTaskSensor`
+- waiting - :class:`~airflow.providers.standard.sensors.external_task.ExternalTaskSensor`
 
 Additional difficulty is that one Dag could wait for or trigger several runs of the other Dag
 with different data intervals. The **Dag Dependencies** view

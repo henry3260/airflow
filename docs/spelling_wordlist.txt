@@ -1,5 +1,6 @@
 aarch
 abc
+AbstractFileSystem
 accessor
 AccessSecretVersionResponse
 accountmaking
@@ -109,6 +110,7 @@ ast
 astroid
 Async
 async
+asyncio
 AsyncResult
 athena
 Atlassian
@@ -142,6 +144,7 @@ available
 avp
 Avro
 avro
+awaitable
 aws
 awsbatch
 awslogs
@@ -230,6 +233,7 @@ callsite
 camelCase
 Cancelled
 cancelled
+Cancelling
 carbonite
 cas
 Cassanda
@@ -366,6 +370,7 @@ csrf
 CSRFProtect
 css
 csv
+Ctl
 ctor
 Ctrl
 cubeName
@@ -375,6 +380,8 @@ customizable
 customizations
 cwd
 cx
+Cypher
+cypher
 Daemonize
 daemonize
 daemonized
@@ -573,6 +580,7 @@ ds
 dsl
 Dsn
 dsn
+dsse
 dst
 dts
 dttm
@@ -589,6 +597,7 @@ dynload
 ec
 ecb
 ECR
+ecr
 ecs
 EdDSA
 edgeexecutor
@@ -608,6 +617,7 @@ emr
 EmrAddSteps
 EmrCreateJobFlow
 enableAutoScale
+enablement
 encodable
 encryptor
 enqueue
@@ -701,6 +711,7 @@ filesystems
 filetype
 finalizers
 findall
+fips
 firebase
 Firehose
 Firestore
@@ -728,6 +739,7 @@ fqdn
 frontend
 fs
 fsGroup
+fsspec
 fullname
 func
 Fundera
@@ -749,6 +761,7 @@ gdbm
 gdrive
 Gelf
 gelf
+gemini
 generateUploadUrl
 Gentner
 geq
@@ -778,6 +791,7 @@ Gitter
 gitter
 gke
 Glassdoor
+globalCSS
 globstring
 glyphicon
 Gmail
@@ -824,6 +838,8 @@ healthjump
 heartrate
 heatmap
 Highcharts
+HITL
+hitl
 hivecmd
 hiveconf
 hiveconfs
@@ -967,6 +983,7 @@ Jira
 jira
 jitter
 JobComplete
+JobDetails
 JobExists
 jobflow
 jobId
@@ -1040,6 +1057,7 @@ kwargs
 KYLIN
 Kylin
 kylin
+Kyverno
 Lakehouse
 LanguageServiceClient
 lastname
@@ -1176,6 +1194,7 @@ muldelete
 multi-cloud
 multimodal
 Multinamespace
+multiprocess
 mutex
 mv
 mwaa
@@ -1221,6 +1240,7 @@ Nodegroups
 nodegroups
 nodeName
 nodeSelector
+nohup
 Nones
 nonnegative
 nonterminal
@@ -1249,6 +1269,7 @@ od
 odbc
 odps
 ok
+oklch
 Okta
 okta
 onboarded
@@ -1497,6 +1518,7 @@ rediss
 redoc
 redownloading
 redshift
+refetch
 reformats
 RefreshError
 regexes
@@ -1620,6 +1642,8 @@ serializer
 serializers
 serverless
 ServiceAccount
+servicebus
+ServiceBusReceivedMessage
 ServicePrincipalCredentials
 ServiceResource
 SES
@@ -1817,8 +1841,10 @@ tasksetmeta
 tasksState
 taskTree
 tblproperties
+tbuild
 TCP
 tcp
+tdload
 teardown
 teardowns
 templatable
@@ -1873,6 +1899,7 @@ toolchain
 Tooltip
 tooltip
 tooltips
+tpt
 traceback
 tracebacks
 tracemalloc
