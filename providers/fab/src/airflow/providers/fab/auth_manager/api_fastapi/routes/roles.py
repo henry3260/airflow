@@ -16,8 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from fastapi import Depends, Path, Query, status
 
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
@@ -34,14 +32,10 @@ from airflow.providers.fab.auth_manager.api_fastapi.services.roles import FABAut
 from airflow.providers.fab.auth_manager.cli_commands.utils import get_application_builder
 from airflow.providers.fab.www.security import permissions
 
-if TYPE_CHECKING:
-    from airflow.providers.fab.auth_manager.api_fastapi.datamodels.roles import (
-        RoleBody,
-        RoleResponse,
-    )
+roles_router = AirflowRouter(prefix="/fab/v1", tags=["FabAuthManager"])
 
 
-@fab_router.post(
+@roles_router.post(
     "/roles",
     responses=create_openapi_http_exception_doc(
         [
