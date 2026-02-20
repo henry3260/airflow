@@ -25,3 +25,12 @@ FAB_AUTH_PREFIX = "/fab/v1"
 
 auth_router = AirflowRouter(tags=FAB_AUTH_TAGS)
 fab_router = AirflowRouter(prefix=FAB_AUTH_PREFIX, tags=FAB_AUTH_TAGS)
+
+
+def register_routes() -> None:
+    """Register FastAPI routes by importing modules for side effects."""
+    import importlib
+
+    importlib.import_module("airflow.providers.fab.auth_manager.api_fastapi.routes.login")
+    importlib.import_module("airflow.providers.fab.auth_manager.api_fastapi.routes.roles")
+    importlib.import_module("airflow.providers.fab.auth_manager.api_fastapi.routes.users")

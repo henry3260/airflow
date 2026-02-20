@@ -202,6 +202,7 @@ class FabAuthManager(BaseAuthManager[User]):
         from airflow.providers.fab.auth_manager.api_fastapi.routes.router import (
             auth_router,
             fab_router,
+            register_routes,
         )
 
         flask_app = create_app(enable_plugins=False)
@@ -216,6 +217,7 @@ class FabAuthManager(BaseAuthManager[User]):
             ),
         )
 
+        register_routes()
         app.include_router(auth_router)
         app.include_router(fab_router)
 

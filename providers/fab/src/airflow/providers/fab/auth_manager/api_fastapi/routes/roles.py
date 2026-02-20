@@ -32,10 +32,8 @@ from airflow.providers.fab.auth_manager.api_fastapi.services.roles import FABAut
 from airflow.providers.fab.auth_manager.cli_commands.utils import get_application_builder
 from airflow.providers.fab.www.security import permissions
 
-roles_router = AirflowRouter(prefix="/fab/v1", tags=["FabAuthManager"])
 
-
-@roles_router.post(
+@fab_router.post(
     "/roles",
     responses=create_openapi_http_exception_doc(
         [
