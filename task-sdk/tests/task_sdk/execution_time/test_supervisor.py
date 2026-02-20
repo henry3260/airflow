@@ -138,6 +138,7 @@ from airflow.sdk.execution_time.supervisor import (
     InProcessSupervisorComms,
     InProcessTestSupervisor,
     _remote_logging_conn,
+    block_orm_access,
     process_log_messages_from_subprocess,
     set_supervisor_comms,
     supervise,
@@ -3040,6 +3041,49 @@ def test_remote_logging_conn_caches_connection_not_client(monkeypatch):
         gc.collect()
         assert backend.calls == 1, "Connection should be cached, not fetched multiple times"
         assert all(ref() is None for ref in clients), "Client instances should be garbage collected"
+
+
+def test_block_orm_access_setattr_none_not_delattr():
+    from airflow import settings
+
+    to_block = ("engine", "async_engine", "Session", "AsyncSession", "NonScopedSession")
+    sentinel = object()
+
+    # Save originals so we can restore the module after the test.
+    originals = {attr: settings.__dict__.get(attr) for attr in to_block}
+    saved_getattr = settings.__dict__.get("__getattr__")
+    saved_configure_orm = settings.__dict__.get("configure_orm")
+
+    try:
+        # Give each attribute a non-None value so we can tell whether setattr set it
+        for attr in to_block:
+            setattr(settings, attr, sentinel)
+
+        block_orm_access()
+
+        for attr in to_block:
+            if attr == "Session":
+                # Session is intentionally replaced with BlockedDBSession, not None
+                continue
+            # If block_orm_access() used delattr(), this getattr() call would trigger
+            # the __getattr__ guard and raise AttributeError – failing the test.
+            value = getattr(settings, attr)
+            assert value is None, (
+                f"settings.{attr} should be None after block_orm_access() (setattr path), "
+                f"got {value!r}.  A delattr() implementation would have removed the attribute "
+                "so __getattr__ would raise AttributeError instead."
+            )
+    finally:
+        for attr, val in originals.items():
+            setattr(settings, attr, val)
+        if saved_getattr is not None:
+            settings.__getattr__ = saved_getattr  # type: ignore[attr-defined]
+        else:
+            settings.__dict__.pop("__getattr__", None)
+        if saved_configure_orm is not None:
+            settings.configure_orm = saved_configure_orm  # type: ignore[attr-defined]
+        else:
+            settings.__dict__.pop("configure_orm", None)
 
 
 def test_process_log_messages_from_subprocess(monkeypatch, caplog):
