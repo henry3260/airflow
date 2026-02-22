@@ -70,13 +70,11 @@ class _UniqueConstraintErrorHandler(BaseErrorHandler[IntegrityError]):
         """Handle IntegrityError exception."""
         if self._is_dialect_matched(exc):
             exception_id = get_random_string()
-            stacktrace = ""
-            for tb in traceback.format_tb(exc.__traceback__):
-                stacktrace += tb
+            stacktrace = "".join(traceback.format_tb(exc.__traceback__))
 
             log_message = f"Error with id {exception_id}\n{stacktrace}"
             log.error(log_message)
-            if conf.get("api", "expose_stacktrace") == "True":
+            if conf.getboolean("api", "expose_stacktrace"):
                 message = log_message
             else:
                 message = (
@@ -93,6 +91,8 @@ class _UniqueConstraintErrorHandler(BaseErrorHandler[IntegrityError]):
                     "message": message,
                 },
             )
+        else:
+            raise exc
 
     def _is_dialect_matched(self, exc: IntegrityError) -> bool:
         """Check if the exception matches the unique constraint error message for any dialect."""

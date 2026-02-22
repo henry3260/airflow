@@ -295,6 +295,35 @@ class TestUniqueConstraintErrorHandler:
         assert exeinfo_response_error.value.detail == expected_exception.detail
 
 
+    @patch("airflow.api_fastapi.common.exceptions.get_random_string", return_value=MOCKED_ID)
+    @conf_vars({("api", "expose_stacktrace"): "True"})
+    @provide_session
+    def test_expose_stacktrace_includes_stacktrace_in_message(
+        self,
+        mock_get_random_string,
+        session,
+    ) -> None:
+        session.add(Pool(pool=TEST_POOL, slots=1, description="test pool", include_deferred=False))
+        session.flush()
+        session.add(Pool(pool=TEST_POOL, slots=1, description="test pool", include_deferred=False))
+
+        with pytest.raises(IntegrityError) as exeinfo_integrity_error:
+            session.commit()
+
+        with pytest.raises(HTTPException) as exeinfo_response_error:
+            self.unique_constraint_error_handler.exception_handler(None, exeinfo_integrity_error.value)  # type: ignore
+
+        message = exeinfo_response_error.value.detail["message"]
+        assert f"Error with id {MOCKED_ID}" in message
+
+    def test_non_matching_integrity_error_is_reraised(self) -> None:
+        """IntegrityError that does not match any known unique constraint pattern should be re-raised."""
+        exc = IntegrityError("statement", {}, Exception("some other integrity error"))
+
+        with pytest.raises(IntegrityError):
+            self.unique_constraint_error_handler.exception_handler(None, exc)  # type: ignore
+
+
 class TestDagErrorHandler:
     @pytest.mark.parametrize(
         "cause",
