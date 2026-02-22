@@ -34,6 +34,7 @@ from airflow.configuration import conf
 from airflow.executors import workloads
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.models import Log
+from airflow.observability.metrics import stats_utils
 from airflow.observability.trace import DebugTrace, Trace, add_debug_span
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import TaskInstanceState
@@ -143,6 +144,7 @@ class BaseExecutor(LoggingMixin):
     active_spans = ThreadSafeDict()
 
     supports_ad_hoc_ti_run: bool = False
+    supports_multi_team: bool = False
     sentry_integration: str = ""
 
     is_local: bool = False
@@ -174,11 +176,8 @@ class BaseExecutor(LoggingMixin):
         return generator
 
     def __init__(self, parallelism: int = PARALLELISM, team_name: str | None = None):
-        Stats.initialize(
-            is_statsd_datadog_enabled=conf.getboolean("metrics", "statsd_datadog_enabled"),
-            is_statsd_on=conf.getboolean("metrics", "statsd_on"),
-            is_otel_on=conf.getboolean("metrics", "otel_on"),
-        )
+        stats_factory = stats_utils.get_stats_factory(Stats)
+        Stats.initialize(factory=stats_factory)
         super().__init__()
         # Ensure we set this now, so that each subprocess gets the same value
         from airflow.api_fastapi.auth.tokens import get_signing_args
@@ -208,7 +207,11 @@ class BaseExecutor(LoggingMixin):
         self.attempts: dict[TaskInstanceKey, RunningRetryAttemptType] = defaultdict(RunningRetryAttemptType)
 
     def __repr__(self):
-        return f"{self.__class__.__name__}(parallelism={self.parallelism})"
+        _repr = f"{self.__class__.__name__}(parallelism={self.parallelism}"
+        if self.team_name:
+            _repr += f", team_name={self.team_name!r}"
+        _repr += ")"
+        return _repr
 
     @classmethod
     def set_active_spans(cls, active_spans: ThreadSafeDict):
@@ -344,7 +347,7 @@ class BaseExecutor(LoggingMixin):
         return sorted(
             self.queued_tasks.items(),
             key=lambda x: x[1].ti.priority_weight,
-            reverse=True,
+            reverse=False,
         )
 
     @add_debug_span
@@ -358,7 +361,7 @@ class BaseExecutor(LoggingMixin):
         workload_list = []
 
         for _ in range(min((open_slots, len(self.queued_tasks)))):
-            key, item = sorted_queue.pop(0)
+            key, item = sorted_queue.pop()
 
             # If a task makes it here but is still understood by the executor
             # to be running, it generally means that the task has been killed
