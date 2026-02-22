@@ -266,10 +266,7 @@ def ti_run(
 
         return context
     except SQLAlchemyError:
-        log.exception("Error marking Task Instance state as running")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Database error occurred"
-        )
+        raise
 
 
 @ti_id_router.patch(
@@ -364,20 +361,12 @@ def ti_update_state(
         if ti is not None:
             _handle_fail_fast_for_dag(ti=ti, dag_id=dag_id, session=session, dag_bag=dag_bag)
 
-    # TODO: Replace this with FastAPI's Custom Exception handling:
-    # https://fastapi.tiangolo.com/tutorial/handling-errors/#install-custom-exception-handlers
-    try:
-        result = session.execute(query)
-        log.info(
-            "Task instance state updated",
-            new_state=updated_state,
-            rows_affected=getattr(result, "rowcount", 0),
-        )
-    except SQLAlchemyError as e:
-        log.error("Error updating Task Instance state", error=str(e))
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Database error occurred"
-        )
+    result = session.execute(query)
+    log.info(
+        "Task instance state updated",
+        new_state=updated_state,
+        rows_affected=getattr(result, "rowcount", 0),
+    )
 
 
 def _handle_fail_fast_for_dag(ti: TI, dag_id: str, session: SessionDep, dag_bag: DagBagDep) -> None:
