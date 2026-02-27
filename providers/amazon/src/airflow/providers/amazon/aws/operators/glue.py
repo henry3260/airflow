@@ -239,7 +239,7 @@ class GlueJobOperator(AwsBaseOperator[GlueJobHook]):
             for job_run in response.get("JobRuns", []):
                 args = job_run.get("Arguments", {}) or {}
                 if args.get(self.TASK_UUID_ARG) == task_uuid:
-                    return job_run.get("Id") or job_run.get("JobRunId")
+                    return job_run.get("Id")
             next_token = response.get("NextToken")
             if not next_token:
                 return None
@@ -262,7 +262,7 @@ class GlueJobOperator(AwsBaseOperator[GlueJobHook]):
                     job_run = self.hook.conn.get_job_run(JobName=self.job_name, RunId=previous_job_run_id)
                     state = job_run.get("JobRun", {}).get("JobRunState")
                     self.log.info("Previous Glue job_run_id: %s, state: %s", previous_job_run_id, state)
-                    if state in ("RUNNING", "STARTING", "STOPPING"):
+                    if state in ("RUNNING", "STARTING"):
                         self._job_run_id = previous_job_run_id
                 except Exception:
                     self.log.warning("Failed to get previous Glue job run state", exc_info=True)
@@ -275,7 +275,7 @@ class GlueJobOperator(AwsBaseOperator[GlueJobHook]):
                         self.log.info(
                             "Found Glue job_run_id by task UUID: %s, state: %s", existing_job_run_id, state
                         )
-                        if state in ("RUNNING", "STARTING", "STOPPING"):
+                        if state in ("RUNNING", "STARTING"):
                             self._job_run_id = existing_job_run_id
                             ti.xcom_push(key="glue_job_run_id", value=self._job_run_id)
                 except Exception:
