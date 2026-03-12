@@ -30,6 +30,7 @@ from cadwyn import (
 )
 from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse
+from sqlalchemy.exc import SQLAlchemyError
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from airflow.api_fastapi.auth.tokens import (
@@ -220,6 +221,15 @@ class CadwynWithOpenAPICustomization(Cadwyn):
                 if prop.get("type") == "string" and (const := prop.pop("const", None)):
                     prop["enum"] = [const]
 
+        # Remove internal x-airflow-* extension fields from OpenAPI spec
+        # These are used for runtime validation but shouldn't be exposed in the public API
+        for path_item in openapi_schema.get("paths", {}).values():
+            for operation in path_item.values():
+                if isinstance(operation, dict):
+                    keys_to_remove = [key for key in operation.keys() if key.startswith("x-airflow-")]
+                    for key in keys_to_remove:
+                        del operation[key]
+
         return openapi_schema
 
 
@@ -248,6 +258,16 @@ def create_task_execution_api_app() -> FastAPI:
     app.add_middleware(JWTReissueMiddleware)
 
     app.generate_and_include_versioned_routers(execution_api_router)
+
+    @app.exception_handler(SQLAlchemyError)
+    def handle_sqlalchemy_error(request: Request, exc: SQLAlchemyError):
+        logger.exception(
+            "Database error",
+            exc_info=(type(exc), exc, exc.__traceback__),
+            path=request.url.path,
+            method=request.method,
+        )
+        return JSONResponse(status_code=500, content={"detail": "Database error occurred"})
 
     # As we are mounted as a sub app, we don't get any logs for unhandled exceptions without this!
     @app.exception_handler(Exception)
@@ -304,23 +324,26 @@ class InProcessExecutionAPI:
         if not self._app:
             from airflow.api_fastapi.common.dagbag import create_dag_bag
             from airflow.api_fastapi.execution_api.app import create_task_execution_api_app
-            from airflow.api_fastapi.execution_api.deps import (
-                JWTBearerDep,
-                JWTBearerTIPathDep,
-            )
+            from airflow.api_fastapi.execution_api.datamodels.token import TIToken
             from airflow.api_fastapi.execution_api.routes.connections import has_connection_access
             from airflow.api_fastapi.execution_api.routes.variables import has_variable_access
             from airflow.api_fastapi.execution_api.routes.xcoms import has_xcom_access
+            from airflow.api_fastapi.execution_api.security import _jwt_bearer
 
             self._app = create_task_execution_api_app()
 
             # Set up dag_bag in app state for dependency injection
             self._app.state.dag_bag = create_dag_bag()
 
-            async def always_allow(): ...
+            async def always_allow(request: Request):
+                from uuid import UUID
 
-            self._app.dependency_overrides[JWTBearerDep.dependency] = always_allow
-            self._app.dependency_overrides[JWTBearerTIPathDep.dependency] = always_allow
+                ti_id = UUID(
+                    request.path_params.get("task_instance_id", "00000000-0000-0000-0000-000000000000")
+                )
+                return TIToken(id=ti_id, claims={"scope": "execution"})
+
+            self._app.dependency_overrides[_jwt_bearer] = always_allow
             self._app.dependency_overrides[has_connection_access] = always_allow
             self._app.dependency_overrides[has_variable_access] = always_allow
             self._app.dependency_overrides[has_xcom_access] = always_allow

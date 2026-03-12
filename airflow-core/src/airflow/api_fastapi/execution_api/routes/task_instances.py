@@ -28,11 +28,11 @@ from uuid import UUID
 import attrs
 import structlog
 from cadwyn import VersionedAPIRouter
-from fastapi import Body, HTTPException, Query, status
+from fastapi import Body, HTTPException, Query, Security, status
 from pydantic import JsonValue
-from sqlalchemy import func, or_, tuple_, update
+from sqlalchemy import and_, func, or_, tuple_, update
 from sqlalchemy.engine import CursorResult
-from sqlalchemy.exc import NoResultFound, SQLAlchemyError
+from sqlalchemy.exc import NoResultFound
 from sqlalchemy.orm import joinedload
 from sqlalchemy.sql import select
 from structlog.contextvars import bind_contextvars
@@ -59,11 +59,12 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     TISuccessStatePayload,
     TITerminalStatePayload,
 )
-from airflow.api_fastapi.execution_api.deps import JWTBearerTIPathDep
+from airflow.api_fastapi.execution_api.security import ExecutionAPIRoute, require_auth
 from airflow.exceptions import TaskNotFound
 from airflow.models.asset import AssetActive
 from airflow.models.dag import DagModel
 from airflow.models.dagrun import DagRun as DR
+from airflow.models.log import Log
 from airflow.models.taskinstance import TaskInstance as TI, _stop_remaining_tasks
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.trigger import Trigger
@@ -78,10 +79,10 @@ if TYPE_CHECKING:
 router = VersionedAPIRouter()
 
 ti_id_router = VersionedAPIRouter(
+    route_class=ExecutionAPIRoute,
     dependencies=[
-        # This checks that the UUID in the url matches the one in the token for us.
-        JWTBearerTIPathDep
-    ]
+        Security(require_auth, scopes=["ti:self"]),
+    ],
 )
 
 
@@ -133,13 +134,17 @@ def ti_run(
             TI.hostname,
             TI.unixname,
             TI.pid,
-            # This selects the raw JSON value, by-passing the deserialization -- we want that to happen on the
+            # This selects the raw JSON value, bypassing the deserialization -- we want that to happen on the
             # client
             column("next_kwargs", JSON),
+            DR.logical_date,
+            DagModel.owners,
         )
         .select_from(TI)
+        .join(DR, and_(TI.dag_id == DR.dag_id, TI.run_id == DR.run_id))
+        .join(DagModel, TI.dag_id == DagModel.dag_id)
         .where(TI.id == task_instance_id)
-        .with_for_update()
+        .with_for_update(of=TI)
     )
     try:
         ti = session.execute(old).one()
@@ -195,6 +200,19 @@ def ti_run(
         )
     else:
         log.info("Task started", previous_state=previous_state, hostname=ti_run_payload.hostname)
+        session.add(
+            Log(
+                event=TaskInstanceState.RUNNING.value,
+                task_id=ti.task_id,
+                dag_id=ti.dag_id,
+                run_id=ti.run_id,
+                map_index=ti.map_index,
+                try_number=ti.try_number,
+                logical_date=ti.logical_date,
+                owner=ti.owners,
+                extra=json.dumps({"host_name": ti_run_payload.hostname}) if ti_run_payload.hostname else None,
+            )
+        )
     # Ensure there is no end date set.
     query = query.values(
         end_date=None,
@@ -205,71 +223,63 @@ def ti_run(
         last_heartbeat_at=timezone.utcnow(),
     )
 
-    try:
-        result = session.execute(query)
-        log.info("Task instance state updated", rows_affected=getattr(result, "rowcount", 0))
+    result = session.execute(query)
+    log.info("Task instance state updated", rows_affected=getattr(result, "rowcount", 0))
 
-        dr = (
-            session.scalars(
-                select(DR)
-                .filter_by(dag_id=ti.dag_id, run_id=ti.run_id)
-                .options(joinedload(DR.consumed_asset_events))
-            )
-            .unique()
-            .one_or_none()
+    dr = (
+        session.scalars(
+            select(DR)
+            .filter_by(dag_id=ti.dag_id, run_id=ti.run_id)
+            .options(joinedload(DR.consumed_asset_events))
         )
+        .unique()
+        .one_or_none()
+    )
 
-        if not dr:
-            log.error("DagRun not found", dag_id=ti.dag_id, run_id=ti.run_id)
-            raise ValueError(f"DagRun with dag_id={ti.dag_id} and run_id={ti.run_id} not found.")
+    if not dr:
+        log.error("DagRun not found", dag_id=ti.dag_id, run_id=ti.run_id)
+        raise ValueError(f"DagRun with dag_id={ti.dag_id} and run_id={ti.run_id} not found.")
 
-        # Send the keys to the SDK so that the client requests to clear those XComs from the server.
-        # The reason we cannot do this here in the server is because we need to issue a purge on custom XCom backends
-        # too. With the current assumption, the workers ONLY have access to the custom XCom backends directly and they
-        # can issue the purge.
+    # Send the keys to the SDK so that the client requests to clear those XComs from the server.
+    # The reason we cannot do this here in the server is because we need to issue a purge on custom XCom backends
+    # too. With the current assumption, the workers ONLY have access to the custom XCom backends directly and they
+    # can issue the purge.
 
-        # However, do not clear it for deferral
-        xcom_keys = []
-        if not ti.next_method:
-            map_index = None if ti.map_index < 0 else ti.map_index
-            xcom_query = select(XComModel.key).where(
-                XComModel.dag_id == ti.dag_id,
-                XComModel.task_id == ti.task_id,
-                XComModel.run_id == ti.run_id,
-            )
-            if map_index is not None:
-                xcom_query = xcom_query.where(XComModel.map_index == map_index)
-
-            xcom_keys = list(session.scalars(xcom_query))
-        task_reschedule_count = (
-            session.scalar(
-                select(func.count(TaskReschedule.id)).where(TaskReschedule.ti_id == task_instance_id)
-            )
-            or 0
+    # However, do not clear it for deferral
+    xcom_keys = []
+    if not ti.next_method:
+        map_index = None if ti.map_index < 0 else ti.map_index
+        xcom_query = select(XComModel.key).where(
+            XComModel.dag_id == ti.dag_id,
+            XComModel.task_id == ti.task_id,
+            XComModel.run_id == ti.run_id,
         )
+        if map_index is not None:
+            xcom_query = xcom_query.where(XComModel.map_index == map_index)
 
-        context = TIRunContext(
-            dag_run=dr,
-            task_reschedule_count=task_reschedule_count,
-            max_tries=ti.max_tries,
-            # TODO: Add variables and connections that are needed (and has perms) for the task
-            variables=[],
-            connections=[],
-            xcom_keys_to_clear=xcom_keys,
-            should_retry=_is_eligible_to_retry(previous_state, ti.try_number, ti.max_tries),
-        )
+        xcom_keys = list(session.scalars(xcom_query))
+    task_reschedule_count = (
+        session.scalar(select(func.count(TaskReschedule.id)).where(TaskReschedule.ti_id == task_instance_id))
+        or 0
+    )
 
-        # Only set if they are non-null
-        if ti.next_method:
-            context.next_method = ti.next_method
-            context.next_kwargs = ti.next_kwargs
+    context = TIRunContext(
+        dag_run=dr,
+        task_reschedule_count=task_reschedule_count,
+        max_tries=ti.max_tries,
+        # TODO: Add variables and connections that are needed (and has perms) for the task
+        variables=[],
+        connections=[],
+        xcom_keys_to_clear=xcom_keys,
+        should_retry=_is_eligible_to_retry(previous_state, ti.try_number, ti.max_tries),
+    )
 
-        return context
-    except SQLAlchemyError:
-        log.exception("Error marking Task Instance state as running")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Database error occurred"
-        )
+    # Only set if they are non-null
+    if ti.next_method:
+        context.next_method = ti.next_method
+        context.next_kwargs = ti.next_kwargs
+
+    return context
 
 
 @ti_id_router.patch(
@@ -297,9 +307,23 @@ def ti_update_state(
     log.debug("Updating task instance state", new_state=ti_patch_payload.state)
 
     old = (
-        select(TI.state, TI.try_number, TI.max_tries, TI.dag_id)
+        select(
+            TI.state,
+            TI.try_number,
+            TI.max_tries,
+            TI.dag_id,
+            TI.task_id,
+            TI.run_id,
+            TI.map_index,
+            TI.hostname,
+            DR.logical_date,
+            DagModel.owners,
+        )
+        .select_from(TI)
+        .join(DR, and_(TI.dag_id == DR.dag_id, TI.run_id == DR.run_id))
+        .join(DagModel, TI.dag_id == DagModel.dag_id)
         .where(TI.id == task_instance_id)
-        .with_for_update()
+        .with_for_update(of=TI)
     )
     try:
         (
@@ -307,6 +331,12 @@ def ti_update_state(
             try_number,
             max_tries,
             dag_id,
+            task_id,
+            run_id,
+            map_index,
+            hostname,
+            logical_date,
+            owners,
         ) = session.execute(old).one()
         log.debug(
             "Retrieved current task instance state",
@@ -372,6 +402,19 @@ def ti_update_state(
             "Task instance state updated",
             new_state=updated_state,
             rows_affected=getattr(result, "rowcount", 0),
+        )
+        session.add(
+            Log(
+                event=updated_state.value,
+                task_id=task_id,
+                dag_id=dag_id,
+                run_id=run_id,
+                map_index=map_index,
+                try_number=try_number,
+                logical_date=logical_date,
+                owner=owners,
+                extra=json.dumps({"host_name": hostname}) if hostname else None,
+            )
         )
     except SQLAlchemyError as e:
         log.error("Error updating Task Instance state", error=str(e))
