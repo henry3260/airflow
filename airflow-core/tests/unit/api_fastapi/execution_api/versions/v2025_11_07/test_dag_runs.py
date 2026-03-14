@@ -57,6 +57,5 @@ def test_get_previous_dag_run_redirect(ver_client, session, dag_maker):
     )
     assert response.status_code == 200
     result = response.json()
-    assert result["dag_id"] == "test_dag_id"
-    assert result["run_id"] == "run2"  # Most recent before 2025-01-10
+    assert result["logical_date"] == "2025-01-05T00:00:00Z"  # Most recent before 2025-01-10
     assert result["state"] == "failed"

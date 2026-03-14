@@ -287,14 +287,12 @@ class TestDagRunDetail:
             "clear_number": 0,
             "conf": {},
             "consumed_asset_events": [],
-            "dag_id": "test_dag_id",
             "data_interval_end": None,
             "data_interval_start": None,
             "end_date": "2025-12-13T00:00:00Z",
             "logical_date": None,
             "partition_key": None,
             "run_after": "2025-12-13T00:00:00Z",
-            "run_id": "previous",
             "run_type": "manual",
             "start_date": "2023-01-02T00:00:00Z",
             "state": "success",
@@ -461,8 +459,7 @@ class TestGetPreviousDagRun:
 
         assert response.status_code == 200
         result = response.json()
-        assert result["dag_id"] == dag_id
-        assert result["run_id"] == "run2"  # Most recent before 2025-01-10
+        assert result["logical_date"] == "2025-01-05T00:00:00Z"  # Most recent before 2025-01-10
         assert result["state"] == "failed"
 
     def test_get_previous_dag_run_with_state_filter(self, client, session, dag_maker):
@@ -496,8 +493,9 @@ class TestGetPreviousDagRun:
 
         assert response.status_code == 200
         result = response.json()
-        assert result["dag_id"] == dag_id
-        assert result["run_id"] == "run3"  # Most recent successful run before 2025-01-10
+        assert (
+            result["logical_date"] == "2025-01-08T00:00:00Z"
+        )  # Most recent successful run before 2025-01-10
         assert result["state"] == "success"
 
     def test_get_previous_dag_run_no_previous_found(self, client, session, dag_maker):

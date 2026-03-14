@@ -124,8 +124,6 @@ class TestDagRunContext:
         """Test DagRunContext can be created with dag_run and first_ti"""
         current_time = timezone.utcnow()
         dag_run_data = DRDataModel(
-            dag_id="test_dag",
-            run_id="test_run",
             logical_date=current_time,
             data_interval_start=current_time,
             data_interval_end=current_time,
@@ -163,8 +161,6 @@ class TestDagRunContext:
         """Test DagRunContext can be serialized and deserialized"""
         current_time = timezone.utcnow()
         dag_run_data = DRDataModel(
-            dag_id="test_dag",
-            run_id="test_run",
             logical_date=current_time,
             data_interval_start=current_time,
             data_interval_end=current_time,
@@ -195,7 +191,7 @@ class TestDagRunContext:
         # Test deserialization
         deserialized = DagRunContext.model_validate_json(serialized)
 
-        assert deserialized.dag_run.dag_id == context.dag_run.dag_id
+        assert deserialized.dag_run.logical_date == context.dag_run.logical_date
         assert deserialized.last_ti.task_id == context.last_ti.task_id
 
     def test_dagrun_context_detached_consumed_asset_events(self, session):
@@ -265,8 +261,6 @@ class TestDagCallbackRequestWithContext:
         """Test DagCallbackRequest with context_from_server field"""
         current_time = timezone.utcnow()
         dag_run_data = DRDataModel(
-            dag_id="test_dag",
-            run_id="test_run",
             logical_date=current_time,
             data_interval_start=current_time,
             data_interval_end=current_time,
@@ -303,7 +297,7 @@ class TestDagCallbackRequestWithContext:
         )
 
         assert request.context_from_server is not None
-        assert request.context_from_server.dag_run.dag_id == "test_dag"
+        assert request.context_from_server.last_ti.dag_id == "test_dag"
         assert request.context_from_server.last_ti.task_id == "test_task"
 
     def test_dag_callback_request_without_context_from_server(self):
@@ -324,8 +318,6 @@ class TestDagCallbackRequestWithContext:
         """Test DagCallbackRequest can be serialized and deserialized with context_from_server"""
         current_time = timezone.utcnow()
         dag_run_data = DRDataModel(
-            dag_id="test_dag",
-            run_id="test_run",
             logical_date=current_time,
             data_interval_start=current_time,
             data_interval_end=current_time,
@@ -369,7 +361,7 @@ class TestDagCallbackRequestWithContext:
 
         assert result == request
         assert result.context_from_server is not None
-        assert result.context_from_server.dag_run.dag_id == "test_dag"
+        assert result.context_from_server.last_ti.dag_id == "test_dag"
         assert result.context_from_server.last_ti.task_id == "test_task"
 
 
@@ -398,8 +390,6 @@ class TestEmailRequest:
             ti=ti_data,
             context_from_server=TIRunContext(
                 dag_run=DRDataModel(
-                    dag_id="test_dag",
-                    run_id="test_run",
                     logical_date="2023-01-01T00:00:00Z",
                     data_interval_start=current_time,
                     data_interval_end=current_time,
@@ -446,8 +436,6 @@ class TestEmailRequest:
 
         context_from_server = TIRunContext(
             dag_run=DRDataModel(
-                dag_id="test_dag",
-                run_id="test_run",
                 logical_date="2023-01-01T00:00:00Z",
                 data_interval_start=current_time,
                 data_interval_end=current_time,

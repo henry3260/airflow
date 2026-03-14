@@ -756,8 +756,6 @@ class TestExecuteDagCallbacks:
 
         current_time = timezone.utcnow()
         dag_run_data = DRDataModel(
-            dag_id="test_dag",
-            run_id="test_run",
             logical_date=current_time,
             data_interval_start=current_time,
             data_interval_end=current_time,
@@ -876,8 +874,6 @@ class TestExecuteDagCallbacks:
         # Create test data
         current_time = timezone.utcnow()
         dag_run_data = DRDataModel(
-            dag_id="test_dag",
-            run_id="test_run",
             logical_date=current_time,
             data_interval_start=current_time,
             data_interval_end=current_time,
@@ -1098,8 +1094,6 @@ class TestExecuteDagCallbacks:
             bundle_version=None,
             context_from_server=DagRunContext(
                 dag_run=DRDataModel(
-                    dag_id="test_dag",
-                    run_id="test_run",
                     logical_date=current_time,
                     data_interval_start=current_time,
                     data_interval_end=current_time,
@@ -1190,8 +1184,6 @@ class TestExecuteDagCallbacks:
             bundle_version=None,
             context_from_server=DagRunContext(
                 dag_run=DRDataModel(
-                    dag_id="test_dag",
-                    run_id="test_run",
                     logical_date=current_time,
                     data_interval_start=current_time,
                     data_interval_end=current_time,
@@ -1562,8 +1554,6 @@ class TestExecuteEmailCallbacks:
             ti=ti_data,
             context_from_server=TIRunContext(
                 dag_run=DRDataModel(
-                    dag_id="test_dag",
-                    run_id="test_run",
                     logical_date="2023-01-01T00:00:00Z",
                     data_interval_start=current_time,
                     data_interval_end=current_time,
@@ -1634,8 +1624,6 @@ class TestExecuteEmailCallbacks:
             email_type="retry",
             context_from_server=TIRunContext(
                 dag_run=DRDataModel(
-                    dag_id="test_dag",
-                    run_id="test_run",
                     logical_date="2023-01-01T00:00:00Z",
                     data_interval_start=current_time,
                     data_interval_end=current_time,
@@ -1702,8 +1690,6 @@ class TestExecuteEmailCallbacks:
             ti=ti_data,
             context_from_server=TIRunContext(
                 dag_run=DRDataModel(
-                    dag_id="test_dag",
-                    run_id="test_run",
                     logical_date="2023-01-01T00:00:00Z",
                     data_interval_start=current_time,
                     data_interval_end=current_time,
@@ -1760,8 +1746,6 @@ class TestExecuteEmailCallbacks:
             ti=ti_data,
             context_from_server=TIRunContext(
                 dag_run=DRDataModel(
-                    dag_id="test_dag",
-                    run_id="test_run",
                     logical_date="2023-01-01T00:00:00Z",
                     data_interval_start=current_time,
                     data_interval_end=current_time,
@@ -1834,8 +1818,6 @@ class TestExecuteEmailCallbacks:
             ti=ti_data,
             context_from_server=TIRunContext(
                 dag_run=DRDataModel(
-                    dag_id=dag_id,
-                    run_id="test_run",
                     logical_date=current_time,
                     data_interval_start=current_time,
                     data_interval_end=current_time,

@@ -82,8 +82,6 @@ class TestCommsDecoder:
             },
             "ti_context": {
                 "dag_run": {
-                    "dag_id": "c",
-                    "run_id": "b",
                     "logical_date": "2024-12-01T01:00:00Z",
                     "data_interval_start": "2024-12-01T00:00:00Z",
                     "data_interval_end": "2024-12-01T01:00:00Z",

@@ -71,6 +71,17 @@ class AddNoteField(VersionChange):
             response.body["dag_run"].pop("note", None)
 
 
+class RemoveDagRunIdentifiers(VersionChange):
+    """Remove duplicate `dag_id` and `run_id` fields from DagRun model."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        schema(DagRun).field("dag_id").existed_as(type=str),
+        schema(DagRun).field("run_id").existed_as(type=str),
+    )
+
+
 class MakeDagRunStartDateNullable(VersionChange):
     """Make DagRun.start_date field nullable for runs that haven't started yet."""
 
