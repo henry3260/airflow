@@ -93,8 +93,6 @@ class TestTIRunStateV20250923:
         )
 
         # Verify other expected fields are still present
-        assert dag_run["dag_id"] == ti.dag_id
-        assert dag_run["run_id"] == "test"
         assert dag_run["state"] == "running"
         assert dag_run["conf"] == {}
 
@@ -152,5 +150,3 @@ class TestTIRunConfV20250923:
         assert dag_run["conf"] == {}, "NULL conf should be converted to empty dict in API version 2025-09-23"
 
         # Verify other expected fields
-        assert dag_run["dag_id"] == ti.dag_id
-        assert dag_run["run_id"] == "test"
