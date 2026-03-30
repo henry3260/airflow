@@ -20,12 +20,16 @@ import inspect
 import typing
 
 import pytest
+from fastapi import FastAPI
 from fastapi.params import Depends as DependsClass
 from fastapi.responses import StreamingResponse
 from starlette.routing import Mount
 
 from airflow.api_fastapi.app import create_app
+from airflow.api_fastapi.common.http_metrics import HttpMetricsMiddleware
+from airflow.api_fastapi.core_api.app import init_middlewares
 
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_jobs
 
 pytestmark = pytest.mark.db_test
@@ -117,3 +121,22 @@ class TestGzipMiddleware:
 
         # Ensure we do not reintroduce Transfer-Encoding: chunked
         assert "transfer-encoding" not in headers
+
+
+class TestHttpMetricsMiddlewareRegistration:
+    @pytest.mark.parametrize(
+        ("metrics_config", "expected"),
+        [
+            pytest.param({}, False, id="disabled"),
+            pytest.param({("metrics", "statsd_on"): "True"}, True, id="enabled"),
+        ],
+    )
+    def test_registers_http_metrics_middleware_only_when_metrics_enabled(self, metrics_config, expected):
+        app = FastAPI()
+
+        with conf_vars(metrics_config):
+            init_middlewares(app)
+
+        registered_middlewares = {middleware.cls for middleware in app.user_middleware}
+
+        assert (HttpMetricsMiddleware in registered_middlewares) is expected
