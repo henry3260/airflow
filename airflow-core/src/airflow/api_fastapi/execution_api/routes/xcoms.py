@@ -20,12 +20,13 @@ from __future__ import annotations
 import logging
 from typing import Annotated
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query, Request, Response, status
+from fastapi import APIRouter, Body, Depends, Path, Query, Request, Response, status
 from pydantic import JsonValue
 from sqlalchemy import delete
 from sqlalchemy.sql.selectable import Select
 
 from airflow.api_fastapi.common.db.common import SessionDep
+from airflow.api_fastapi.common.exceptions import ExecutionHTTPException
 from airflow.api_fastapi.core_api.base import BaseModel
 from airflow.api_fastapi.execution_api.datamodels.xcom import (
     XComResponse,
@@ -118,7 +119,7 @@ def get_mapped_xcom_by_index(
         message = (
             f"XCom with {key=} {offset=} not found for task {task_id!r} in DAG run {run_id!r} of {dag_id!r}"
         )
-        raise HTTPException(
+        raise ExecutionHTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={"reason": "not_found", "message": message},
         )
@@ -239,7 +240,7 @@ def head_xcom(
 ) -> None:
     """Get the count of XComs from database - not other XCom Backends."""
     if map_index is not None:
-        raise HTTPException(
+        raise ExecutionHTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail={"reason": "invalid_request", "message": "Cannot specify map_index in a HEAD request"},
         )
@@ -304,7 +305,7 @@ def get_xcom(
                 f"XCom with {key=} offset={params.offset} not found for "
                 f"task {task_id!r} in DAG run {run_id!r} of {dag_id!r}"
             )
-        raise HTTPException(
+        raise ExecutionHTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={"reason": "not_found", "message": message},
         )
@@ -356,7 +357,7 @@ def set_xcom(
     # Validate that the provided key is not empty
     # XCom keys must be non-empty strings to ensure proper data retrieval and avoid ambiguity.
     if not key:
-        raise HTTPException(
+        raise ExecutionHTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail={
                 "reason": "invalid_key",
@@ -375,7 +376,7 @@ def set_xcom(
         )
         max_map_length = conf.getint("core", "max_map_length", fallback=1024)
         if task_map.length > max_map_length:
-            raise HTTPException(
+            raise ExecutionHTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail={
                     "reason": "unmappable_return_value_length",
@@ -402,7 +403,7 @@ def set_xcom(
             session=session,
         )
     except ValueError as e:
-        raise HTTPException(
+        raise ExecutionHTTPException(
             status.HTTP_404_NOT_FOUND,
             detail={
                 "reason": "not_found",
@@ -410,7 +411,7 @@ def set_xcom(
             },
         )
     except TypeError as e:
-        raise HTTPException(
+        raise ExecutionHTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail={
                 "reason": "invalid_format",

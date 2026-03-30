@@ -17,9 +17,10 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, status
 
 from airflow.api_fastapi.common.db.common import SessionDep
+from airflow.api_fastapi.common.exceptions import ExecutionHTTPException
 from airflow.api_fastapi.execution_api.datamodels.dags import DagResponse
 from airflow.models.dag import DagModel
 
@@ -39,7 +40,7 @@ def get_dag(
     """Get a DAG."""
     dag_model: DagModel | None = session.get(DagModel, dag_id)
     if not dag_model:
-        raise HTTPException(
+        raise ExecutionHTTPException(
             status.HTTP_404_NOT_FOUND,
             detail={
                 "reason": "not_found",

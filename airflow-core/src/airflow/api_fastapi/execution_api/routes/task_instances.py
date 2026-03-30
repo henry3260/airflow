@@ -28,7 +28,7 @@ from uuid import UUID
 import attrs
 import structlog
 from cadwyn import VersionedAPIRouter
-from fastapi import Body, HTTPException, Query, Security, status
+from fastapi import Body, Query, Security, status
 from opentelemetry import trace
 from opentelemetry.trace import StatusCode
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
@@ -44,6 +44,7 @@ from airflow._shared.observability.traces import override_ids
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.common.dagbag import DagBagDep, get_latest_version_of_dag
 from airflow.api_fastapi.common.db.common import SessionDep
+from airflow.api_fastapi.common.exceptions import ExecutionHTTPException
 from airflow.api_fastapi.common.types import UtcDateTime
 from airflow.api_fastapi.compat import HTTP_422_UNPROCESSABLE_CONTENT
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
@@ -157,7 +158,7 @@ def ti_run(
         log.debug("Retrieved task instance details", state=ti.state, dag_id=ti.dag_id, task_id=ti.task_id)
     except NoResultFound:
         log.error("Task Instance not found")
-        raise HTTPException(
+        raise ExecutionHTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={
                 "reason": "not_found",
@@ -196,7 +197,7 @@ def ti_run(
         # to provide more information about the error
         # FastAPI will automatically convert this to a JSON response
         # This might be added in FastAPI in https://github.com/fastapi/fastapi/issues/10370
-        raise HTTPException(
+        raise ExecutionHTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail={
                 "reason": "invalid_state",
@@ -291,7 +292,7 @@ def ti_run(
         return context
     except SQLAlchemyError:
         log.exception("Error marking Task Instance state as running")
-        raise HTTPException(
+        raise ExecutionHTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail={
                 "reason": "database_error",
@@ -364,7 +365,7 @@ def ti_update_state(
         )
     except NoResultFound:
         log.error("Task Instance not found")
-        raise HTTPException(
+        raise ExecutionHTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={
                 "reason": "not_found",
@@ -377,7 +378,7 @@ def ti_update_state(
             "Cannot update Task Instance in invalid state",
             previous_state=previous_state,
         )
-        raise HTTPException(
+        raise ExecutionHTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail={
                 "reason": "invalid_state",
@@ -436,7 +437,7 @@ def ti_update_state(
         )
     except SQLAlchemyError as e:
         log.error("Error updating Task Instance state", error=str(e))
-        raise HTTPException(
+        raise ExecutionHTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail={
                 "reason": "database_error",
@@ -641,7 +642,7 @@ def ti_skip_downstream(
     query_result = session.execute(select(TI.dag_id, TI.run_id).where(TI.id == task_instance_id))
     row_result = query_result.fetchone()
     if row_result is None:
-        raise HTTPException(
+        raise ExecutionHTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={"reason": "not_found", "message": "Task Instance not found"},
         )
@@ -733,7 +734,7 @@ def ti_heartbeat(
                 },
             )
         log.error("Task Instance not found")
-        raise HTTPException(
+        raise ExecutionHTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={
                 "reason": "not_found",
@@ -749,7 +750,7 @@ def ti_heartbeat(
             requested_hostname=ti_payload.hostname,
             requested_pid=ti_payload.pid,
         )
-        raise HTTPException(
+        raise ExecutionHTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail={
                 "reason": "running_elsewhere",
@@ -761,7 +762,7 @@ def ti_heartbeat(
 
     if previous_state != TaskInstanceState.RUNNING:
         log.warning("Task not in running state", current_state=previous_state)
-        raise HTTPException(
+        raise ExecutionHTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail={
                 "reason": "not_running",
@@ -802,7 +803,7 @@ def ti_put_rtif(
     task_instance = session.scalar(select(TI).where(TI.id == task_instance_id))
     if not task_instance:
         log.error("Task Instance not found")
-        raise HTTPException(
+        raise ExecutionHTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={
                 "reason": "not_found",
@@ -833,7 +834,7 @@ def ti_patch_rendered_map_index(
 
     if not rendered_map_index:
         log.error("rendered_map_index cannot be empty")
-        raise HTTPException(
+        raise ExecutionHTTPException(
             status_code=HTTP_422_UNPROCESSABLE_CONTENT,
             detail={
                 "reason": "invalid_request",
@@ -849,7 +850,7 @@ def ti_patch_rendered_map_index(
     result = cast("CursorResult[Any]", result)
     if result.rowcount == 0:
         log.error("Task Instance not found")
-        raise HTTPException(
+        raise ExecutionHTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={
                 "reason": "not_found",
@@ -1102,7 +1103,7 @@ def _get_group_tasks(
     dag = get_latest_version_of_dag(dag_bag, dag_id, session, include_reason=True)
     task_group = dag.task_group_dict.get(task_group_id)
     if not task_group:
-        raise HTTPException(
+        raise ExecutionHTTPException(
             status.HTTP_404_NOT_FOUND,
             detail={
                 "reason": "not_found",
@@ -1142,7 +1143,7 @@ def validate_inlets_and_outlets(
     ti = session.scalar(select(TI).where(TI.id == task_instance_id))
     if not ti:
         log.error("Task Instance not found")
-        raise HTTPException(
+        raise ExecutionHTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={
                 "reason": "not_found",

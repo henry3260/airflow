@@ -21,7 +21,7 @@ import logging
 import traceback
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Generic, TypeVar
+from typing import Any, Generic, TypeVar
 
 from fastapi import HTTPException, Request, status
 from sqlalchemy.exc import IntegrityError
@@ -120,6 +120,37 @@ class DagErrorHandler(BaseErrorHandler[DeserializationError]):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"An error occurred while trying to deserialize Dag: {exc}",
         )
+
+
+class ExecutionHTTPException(HTTPException):
+    """
+    HTTPException subclass used by Execution API.
+
+    Enforces consistent error response format containing `reason` and `message` keys.
+    """
+
+    def __init__(
+        self,
+        status_code: int,
+        detail: dict[str, Any] | str | None = None,
+        headers: dict[str, str] | None = None,
+    ) -> None:
+        """Initialize with enforced dict format."""
+        if isinstance(detail, str) or detail is None:
+            detail = {
+                "reason": "error",
+                "message": detail or "An error occurred",
+            }
+        elif isinstance(detail, dict):
+            detail = dict(detail)  # copy
+            if "reason" not in detail:
+                detail["reason"] = "error"
+            if "message" not in detail:
+                detail["message"] = "An error occurred"
+        else:
+            detail = {"reason": "error", "message": str(detail)}
+
+        super().__init__(status_code=status_code, detail=detail, headers=headers)
 
 
 ERROR_HANDLERS: list[BaseErrorHandler] = [_UniqueConstraintErrorHandler(), DagErrorHandler()]
