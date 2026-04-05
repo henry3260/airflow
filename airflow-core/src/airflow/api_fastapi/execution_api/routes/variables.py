@@ -68,27 +68,19 @@ def get_variable(
     team_name: Annotated[str | None, Depends(get_team_name_dep)],
 ) -> VariableResponse:
     """Get an Airflow Variable."""
-<<<<<<< HEAD
-=======
     if not variable_key:
-        raise HTTPException(
+        raise ExecutionHTTPException(
             status.HTTP_404_NOT_FOUND,
-            detail={
-                "reason": "not_found",
-                "message": "Not Found",
-            },
+            reason="not_found",
+            message="Not Found",
         )
-
->>>>>>> 74415533b0 (Execution API: Normalize error response formats)
     try:
         variable_value = Variable.get(variable_key, team_name=team_name)
     except KeyError:
         raise ExecutionHTTPException(
             status.HTTP_404_NOT_FOUND,
-            detail={
-                "reason": "not_found",
-                "message": f"Variable with key '{variable_key}' not found",
-            },
+            reason="not_found",
+            message=f"Variable with key '{variable_key}' not found",
         )
 
     return VariableResponse(key=variable_key, value=variable_value)
@@ -108,18 +100,13 @@ def put_variable(
     team_name: Annotated[str | None, Depends(get_team_name_dep)],
 ):
     """Set an Airflow Variable."""
-<<<<<<< HEAD
-=======
     if not variable_key:
         raise ExecutionHTTPException(
             status.HTTP_404_NOT_FOUND,
-            detail={
-                "reason": "not_found",
-                "message": "Not Found",
-            },
+            reason="not_found",
+            message="Not Found",
         )
 
->>>>>>> 74415533b0 (Execution API: Normalize error response formats)
     Variable.set(key=variable_key, value=body.value, description=body.description, team_name=team_name)
     return {"message": "Variable successfully set"}
 
@@ -137,16 +124,11 @@ def delete_variable(
     team_name: Annotated[str | None, Depends(get_team_name_dep)],
 ):
     """Delete an Airflow Variable."""
-<<<<<<< HEAD
-=======
     if not variable_key:
         raise ExecutionHTTPException(
             status.HTTP_404_NOT_FOUND,
-            detail={
-                "reason": "not_found",
-                "message": "Not Found",
-            },
+            reason="not_found",
+            message="Not Found",
         )
 
->>>>>>> 74415533b0 (Execution API: Normalize error response formats)
     Variable.delete(key=variable_key, team_name=team_name)

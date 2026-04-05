@@ -160,10 +160,8 @@ def ti_run(
         log.error("Task Instance not found")
         raise ExecutionHTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail={
-                "reason": "not_found",
-                "message": "Task Instance not found",
-            },
+            reason="not_found",
+            message="Task Instance not found",
         )
 
     # We exclude_unset to avoid updating fields that are not set in the payload
@@ -199,11 +197,9 @@ def ti_run(
         # This might be added in FastAPI in https://github.com/fastapi/fastapi/issues/10370
         raise ExecutionHTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail={
-                "reason": "invalid_state",
-                "message": "TI was not in a state where it could be marked as running",
-                "previous_state": previous_state,
-            },
+            reason="invalid_state",
+            message="TI was not in a state where it could be marked as running",
+            extra={"previous_state": previous_state},
         )
     else:
         log.info("Task started", previous_state=previous_state, hostname=ti_run_payload.hostname)
@@ -294,10 +290,8 @@ def ti_run(
         log.exception("Error marking Task Instance state as running")
         raise ExecutionHTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail={
-                "reason": "database_error",
-                "message": "Database error occurred",
-            },
+            reason="database_error",
+            message="Database error occurred",
         )
 
 
@@ -367,10 +361,8 @@ def ti_update_state(
         log.error("Task Instance not found")
         raise ExecutionHTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail={
-                "reason": "not_found",
-                "message": "Task Instance not found",
-            },
+            reason="not_found",
+            message="Task Instance not found",
         )
 
     if previous_state != TaskInstanceState.RUNNING:
@@ -380,11 +372,9 @@ def ti_update_state(
         )
         raise ExecutionHTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail={
-                "reason": "invalid_state",
-                "message": "TI was not in the running state so it cannot be updated",
-                "previous_state": previous_state,
-            },
+            reason="invalid_state",
+            message="TI was not in the running state so it cannot be updated",
+            extra={"previous_state": previous_state},
         )
 
     # We exclude_unset to avoid updating fields that are not set in the payload
@@ -439,10 +429,8 @@ def ti_update_state(
         log.error("Error updating Task Instance state", error=str(e))
         raise ExecutionHTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail={
-                "reason": "database_error",
-                "message": "Database error occurred",
-            },
+            reason="database_error",
+            message="Database error occurred",
         )
 
 
@@ -644,7 +632,8 @@ def ti_skip_downstream(
     if row_result is None:
         raise ExecutionHTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail={"reason": "not_found", "message": "Task Instance not found"},
+            reason="not_found",
+            message="Task Instance not found",
         )
     dag_id, run_id = row_result
     log.debug("Retrieved DAG and run info", dag_id=dag_id, run_id=run_id)
@@ -726,20 +715,16 @@ def ti_heartbeat(
                 "TaskInstance was previously cleared and archived in history, heartbeat skipped",
                 ti_id=str(task_instance_id),
             )
-            raise HTTPException(
+            raise ExecutionHTTPException(
                 status_code=status.HTTP_410_GONE,
-                detail={
-                    "reason": "not_found",
-                    "message": "Task Instance not found, it may have been moved to the Task Instance History table",
-                },
+                reason="not_found",
+                message="Task Instance not found, it may have been moved to the Task Instance History table",
             )
         log.error("Task Instance not found")
         raise ExecutionHTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail={
-                "reason": "not_found",
-                "message": "Task Instance not found",
-            },
+            reason="not_found",
+            message="Task Instance not found",
         )
 
     if hostname != ti_payload.hostname or pid != ti_payload.pid:
@@ -752,23 +737,18 @@ def ti_heartbeat(
         )
         raise ExecutionHTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail={
-                "reason": "running_elsewhere",
-                "message": "TI is already running elsewhere",
-                "current_hostname": hostname,
-                "current_pid": pid,
-            },
+            reason="running_elsewhere",
+            message="TI is already running elsewhere",
+            extra={"current_hostname": hostname, "current_pid": pid},
         )
 
     if previous_state != TaskInstanceState.RUNNING:
         log.warning("Task not in running state", current_state=previous_state)
         raise ExecutionHTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail={
-                "reason": "not_running",
-                "message": "TI is no longer in the running state and task should terminate",
-                "current_state": previous_state,
-            },
+            reason="not_running",
+            message="TI is no longer in the running state and task should terminate",
+            extra={"current_state": previous_state},
         )
 
     # Update the last heartbeat time!
@@ -805,10 +785,8 @@ def ti_put_rtif(
         log.error("Task Instance not found")
         raise ExecutionHTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail={
-                "reason": "not_found",
-                "message": "Task Instance not found",
-            },
+            reason="not_found",
+            message="Task Instance not found",
         )
     task_instance.update_rtif(put_rtif_payload, session)
     log.debug("RenderedTaskInstanceFields updated successfully")
@@ -836,10 +814,8 @@ def ti_patch_rendered_map_index(
         log.error("rendered_map_index cannot be empty")
         raise ExecutionHTTPException(
             status_code=HTTP_422_UNPROCESSABLE_CONTENT,
-            detail={
-                "reason": "invalid_request",
-                "message": "rendered_map_index cannot be empty",
-            },
+            reason="invalid_request",
+            message="rendered_map_index cannot be empty",
         )
 
     log.debug("Updating rendered_map_index", length=len(rendered_map_index))
@@ -852,10 +828,8 @@ def ti_patch_rendered_map_index(
         log.error("Task Instance not found")
         raise ExecutionHTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail={
-                "reason": "not_found",
-                "message": "Task Instance not found",
-            },
+            reason="not_found",
+            message="Task Instance not found",
         )
 
 
@@ -1105,10 +1079,8 @@ def _get_group_tasks(
     if not task_group:
         raise ExecutionHTTPException(
             status.HTTP_404_NOT_FOUND,
-            detail={
-                "reason": "not_found",
-                "message": f"Task group {task_group_id} not found in DAG {dag_id}",
-            },
+            reason="not_found",
+            message=f"Task group {task_group_id} not found in DAG {dag_id}",
         )
 
     # First get all task instances to get the task_id, map_index pairs
@@ -1145,10 +1117,8 @@ def validate_inlets_and_outlets(
         log.error("Task Instance not found")
         raise ExecutionHTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail={
-                "reason": "not_found",
-                "message": "Task Instance not found",
-            },
+            reason="not_found",
+            message="Task Instance not found",
         )
 
     if not ti.task:

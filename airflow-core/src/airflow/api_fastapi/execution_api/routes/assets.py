@@ -63,8 +63,6 @@ def _raise_if_not_found(asset, msg):
     if asset is None:
         raise ExecutionHTTPException(
             status.HTTP_404_NOT_FOUND,
-            detail={
-                "reason": "not_found",
-                "message": msg,
-            },
+            reason="not_found",
+            message=msg,
         )

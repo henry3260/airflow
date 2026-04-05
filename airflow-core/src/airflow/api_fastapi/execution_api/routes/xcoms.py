@@ -121,7 +121,8 @@ def get_mapped_xcom_by_index(
         )
         raise ExecutionHTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail={"reason": "not_found", "message": message},
+            reason="not_found",
+            message=message,
         )
     return XComSequenceIndexResponse((result[0] if isinstance(result, tuple) else result).value)
 
@@ -242,7 +243,8 @@ def head_xcom(
     if map_index is not None:
         raise ExecutionHTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail={"reason": "invalid_request", "message": "Cannot specify map_index in a HEAD request"},
+            reason="invalid_request",
+            message="Cannot specify map_index in a HEAD request",
         )
 
     count = get_query_count(xcom_query, session=session)
@@ -307,7 +309,8 @@ def get_xcom(
             )
         raise ExecutionHTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail={"reason": "not_found", "message": message},
+            reason="not_found",
+            message=message,
         )
 
     return XComResponse(key=key, value=(result[0] if isinstance(result, tuple) else result).value)
@@ -359,10 +362,8 @@ def set_xcom(
     if not key:
         raise ExecutionHTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail={
-                "reason": "invalid_key",
-                "message": "XCom key must be a non-empty string.",
-            },
+            reason="invalid_key",
+            message="XCom key must be a non-empty string.",
         )
 
     if mapped_length is not None:
@@ -378,10 +379,8 @@ def set_xcom(
         if task_map.length > max_map_length:
             raise ExecutionHTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail={
-                    "reason": "unmappable_return_value_length",
-                    "message": "pushed value is too large to map as a downstream's dependency",
-                },
+                reason="unmappable_return_value_length",
+                message="pushed value is too large to map as a downstream's dependency",
             )
         session.merge(task_map)
 
@@ -405,18 +404,14 @@ def set_xcom(
     except ValueError as e:
         raise ExecutionHTTPException(
             status.HTTP_404_NOT_FOUND,
-            detail={
-                "reason": "not_found",
-                "message": str(e),
-            },
+            reason="not_found",
+            message=str(e),
         )
     except TypeError as e:
         raise ExecutionHTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail={
-                "reason": "invalid_format",
-                "message": f"XCom value is not a valid JSON: {e}",
-            },
+            reason="invalid_format",
+            message=f"XCom value is not a valid JSON: {e}",
         )
 
     return {"message": "XCom successfully set"}

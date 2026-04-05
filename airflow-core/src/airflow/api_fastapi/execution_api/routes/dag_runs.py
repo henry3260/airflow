@@ -72,10 +72,8 @@ def get_dag_run(dag_id: str, run_id: str, session: SessionDep) -> DagRun:
     if dr is None:
         raise ExecutionHTTPException(
             status.HTTP_404_NOT_FOUND,
-            detail={
-                "reason": "not_found",
-                "message": f"Dag run with dag_id '{dag_id}' and run_id '{run_id}' was not found",
-            },
+            reason="not_found",
+            message=f"Dag run with dag_id '{dag_id}' and run_id '{run_id}' was not found",
         )
     return DagRun.model_validate(dr)
 
@@ -101,16 +99,15 @@ def trigger_dag_run(
     if not dm:
         raise ExecutionHTTPException(
             status.HTTP_404_NOT_FOUND,
-            detail={"reason": "not_found", "message": f"Dag with dag_id: '{dag_id}' not found"},
+            reason="not_found",
+            message=f"Dag with dag_id: '{dag_id}' not found",
         )
 
     if dm.has_import_errors:
         raise ExecutionHTTPException(
             status.HTTP_400_BAD_REQUEST,
-            detail={
-                "reason": "import_errors",
-                "message": f"Dag with dag_id '{dag_id}' has import errors and cannot be triggered",
-            },
+            reason="import_errors",
+            message=f"Dag with dag_id '{dag_id}' has import errors and cannot be triggered",
         )
 
     # TODO: TriggerDagRunOperator also calls this route but creates OPERATOR_TRIGGERED runs.
@@ -118,10 +115,8 @@ def trigger_dag_run(
     if dm.allowed_run_types is not None and DagRunType.OPERATOR_TRIGGERED not in dm.allowed_run_types:
         raise ExecutionHTTPException(
             status.HTTP_400_BAD_REQUEST,
-            detail={
-                "reason": "denied_run_type",
-                "message": f"Dag with dag_id '{dag_id}' does not allow operator-triggered runs",
-            },
+            reason="denied_run_type",
+            message=f"Dag with dag_id '{dag_id}' does not allow operator-triggered runs",
         )
 
     try:
@@ -140,10 +135,8 @@ def trigger_dag_run(
     except DagRunAlreadyExists:
         raise ExecutionHTTPException(
             status.HTTP_409_CONFLICT,
-            detail={
-                "reason": "already_exists",
-                "message": f"A run already exists for Dag '{dag_id}' with run_id '{run_id}'",
-            },
+            reason="already_exists",
+            message=f"A run already exists for Dag '{dag_id}' with run_id '{run_id}'",
         )
 
 
@@ -167,16 +160,15 @@ def clear_dag_run(
     if not dm:
         raise ExecutionHTTPException(
             status.HTTP_404_NOT_FOUND,
-            detail={"reason": "not_found", "message": f"Dag with dag_id: '{dag_id}' not found"},
+            reason="not_found",
+            message=f"Dag with dag_id: '{dag_id}' not found",
         )
 
     if dm.has_import_errors:
         raise ExecutionHTTPException(
             status.HTTP_400_BAD_REQUEST,
-            detail={
-                "reason": "import_errors",
-                "message": f"Dag with dag_id '{dag_id}' has import errors and cannot be triggered",
-            },
+            reason="import_errors",
+            message=f"Dag with dag_id '{dag_id}' has import errors and cannot be triggered",
         )
 
     dag_run = session.scalar(
@@ -185,7 +177,8 @@ def clear_dag_run(
     if dag_run is None:
         raise ExecutionHTTPException(
             status.HTTP_404_NOT_FOUND,
-            detail={"reason": "not_found", "message": f"Dag run with run_id: '{run_id}' not found"},
+            reason="not_found",
+            message=f"Dag run with run_id: '{run_id}' not found",
         )
     dag = get_dag_for_run(dag_bag, dag_run=dag_run, session=session)
 
@@ -209,10 +202,8 @@ def get_dagrun_state(
     except NoResultFound:
         raise ExecutionHTTPException(
             status.HTTP_404_NOT_FOUND,
-            detail={
-                "reason": "not_found",
-                "message": f"Dag run with dag_id '{dag_id}' and run_id '{run_id}' was not found",
-            },
+            reason="not_found",
+            message=f"Dag run with dag_id '{dag_id}' and run_id '{run_id}' was not found",
         )
     return DagRunStateResponse(state=state)
 

@@ -93,10 +93,8 @@ def get_asset_event_by_asset_name_uri(
     else:
         raise ExecutionHTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail={
-                "reason": "Missing parameter",
-                "message": "name and uri cannot both be None",
-            },
+            reason="Missing parameter",
+            message="name and uri cannot both be None",
         )
 
     if after:

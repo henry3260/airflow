@@ -42,10 +42,8 @@ def get_dag(
     if not dag_model:
         raise ExecutionHTTPException(
             status.HTTP_404_NOT_FOUND,
-            detail={
-                "reason": "not_found",
-                "message": f"The Dag with dag_id: `{dag_id}` was not found",
-            },
+            reason="not_found",
+            message=f"The Dag with dag_id: `{dag_id}` was not found",
         )
 
     return DagResponse(

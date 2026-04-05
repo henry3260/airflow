@@ -69,9 +69,7 @@ def get_connection(
     except AirflowNotFoundException:
         raise ExecutionHTTPException(
             status.HTTP_404_NOT_FOUND,
-            detail={
-                "reason": "not_found",
-                "message": f"Connection with ID {connection_id} not found",
-            },
+            reason="not_found",
+            message=f"Connection with ID {connection_id} not found",
         )
     return ConnectionResponse.model_validate(connection)

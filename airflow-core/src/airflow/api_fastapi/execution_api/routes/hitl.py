@@ -98,13 +98,10 @@ def _check_hitl_detail_exists(hitl_detail_model: HITLDetail | None) -> HITLDetai
     if not hitl_detail_model:
         raise ExecutionHTTPException(
             status.HTTP_404_NOT_FOUND,
-            detail={
-                "reason": "not_found",
-                "message": (
-                    "HITLDetail not found. "
-                    "This happens most likely due to clearing task instance before receiving response."
-                ),
-            },
+            reason="not_found",
+            message=(
+                "HITLDetail not found. This happens most likely due to clearing task instance before receiving response."
+            ),
         )
 
     return hitl_detail_model
@@ -124,7 +121,8 @@ def update_hitl_detail(
     if hitl_detail_model.response_received:
         raise ExecutionHTTPException(
             status.HTTP_409_CONFLICT,
-            f"Human-in-the-loop detail for Task Instance with id {task_instance_id} already exists.",
+            reason="already_exists",
+            message=f"Human-in-the-loop detail for Task Instance with id {task_instance_id} already exists.",
         )
 
     hitl_detail_model.responded_by = None
