@@ -89,16 +89,13 @@ class _UniqueConstraintErrorHandler(BaseErrorHandler[IntegrityError]):
                 statement = "hidden"
                 orig_error = "hidden"
 
-            # Return JSONResponse directly to avoid extra wrapping by global HTTPException handler
-            return JSONResponse(
+            raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                content={
-                    "detail": {
-                        "reason": "Unique constraint violation",
-                        "statement": statement,
-                        "orig_error": orig_error,
-                        "message": message,
-                    }
+                detail={
+                    "reason": "Unique constraint violation",
+                    "statement": statement,
+                    "orig_error": orig_error,
+                    "message": message,
                 },
             )
 
@@ -120,15 +117,9 @@ class DagErrorHandler(BaseErrorHandler[DeserializationError]):
 
     def exception_handler(self, request: Request, exc: DeserializationError):
         """Handle Dag deserialization exceptions."""
-        # Return JSONResponse directly to avoid extra wrapping by global HTTPException handler
-        return JSONResponse(
+        raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            content={
-                "detail": {
-                    "reason": "dag_deserialization_error",
-                    "message": f"An error occurred while trying to deserialize Dag: {exc}",
-                }
-            },
+            detail=f"An error occurred while trying to deserialize Dag: {exc}",
         )
 
 
@@ -175,6 +166,17 @@ def _ensure_detail_dict(detail: dict[str, Any] | str | None) -> dict[str, Any]:
     if isinstance(detail, str) or detail is None:
         return {"reason": "error", "message": detail or "An error occurred"}
     if isinstance(detail, dict):
+        # Flatten legacy/nested payloads: {"detail": "..."} -> {"reason": "error", "message": "..."}
+        if set(detail.keys()) == {"detail"}:
+            nested_detail = detail["detail"]
+            if isinstance(nested_detail, dict):
+                normalized = dict(nested_detail)
+                normalized.setdefault("reason", "error")
+                normalized.setdefault("message", "An error occurred")
+                return normalized
+            return {"reason": "error", "message": str(nested_detail)}
+
+        # Idempotent path: keep already structured details intact.
         normalized = dict(detail)
         normalized.setdefault("reason", "error")
         normalized.setdefault("message", "An error occurred")
