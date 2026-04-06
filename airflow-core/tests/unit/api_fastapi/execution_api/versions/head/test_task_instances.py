@@ -3238,7 +3238,7 @@ class TestTokenTypeValidation:
         payload = {"hostname": "test-host", "pid": 100}
         resp = client.put(f"/execution/task-instances/{ti.id}/heartbeat", json=payload)
         assert resp.status_code == 403
-        assert "Token type 'workload' not allowed" in resp.json()["detail"]
+        assert "Token type 'workload' not allowed" in resp.json()["detail"]["message"]
 
     def test_execution_scope_accepted_on_all_endpoints(self, client, session, create_task_instance):
         """execution scoped tokens should be able to call all endpoints."""
@@ -3282,7 +3282,7 @@ class TestTokenTypeValidation:
 
         resp = client.patch(f"/execution/task-instances/{ti.id}/run", json=payload)
         assert resp.status_code == 403
-        assert "Invalid token scope" in resp.json()["detail"]
+        assert "Invalid token scope" in resp.json()["detail"]["message"]
 
     def test_no_scope_defaults_to_execution(self, client, session, create_task_instance):
         """Tokens without scope claim should default to 'execution'."""
