@@ -37,7 +37,6 @@ class TIClaims(BaseModel):
 
     model_config = ConfigDict(extra="allow")
 
-    sub: UUID
     scope: TokenScope = "execution"
 
 

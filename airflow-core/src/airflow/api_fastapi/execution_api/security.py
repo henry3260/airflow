@@ -135,7 +135,7 @@ class JWTBearer(HTTPBearer):
             log.warning("JWT claims did not match task identity token schema", exc_info=True)
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=f"Invalid auth token: {err}")
 
-        token = TIToken(id=claim_model.sub, claims=claim_model)
+        token = TIToken(id=claims["sub"], claims=claim_model)
         request.scope[_REQUEST_SCOPE_TOKEN_KEY] = token
         return token
 

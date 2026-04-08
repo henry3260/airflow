@@ -22,7 +22,6 @@ from uuid import UUID
 import pytest
 from fastapi import APIRouter, FastAPI, Request, Security
 from fastapi.testclient import TestClient
-from pydantic import ValidationError
 
 from airflow.api_fastapi.execution_api.datamodels.token import TIClaims, TIToken, TokenScope
 from airflow.api_fastapi.execution_api.security import (
@@ -35,22 +34,15 @@ from airflow.api_fastapi.execution_api.security import (
 
 class TestTIClaims:
     def test_defaults_scope_and_retains_extra(self):
-        claims = TIClaims(sub=UUID(int=1), team="data")
+        claims = TIClaims(team="data")
 
         assert claims.scope == "execution"
         assert claims.team == "data"
 
-    def test_rejects_invalid_uuid(self):
-        with pytest.raises(ValidationError) as err:
-            TIClaims(sub="not-a-uuid")
+    def test_accepts_sub_as_extra_claim(self):
+        claims = TIClaims(sub="not-a-uuid")
 
-        assert "UUID" in str(err.value)
-
-    def test_rejects_missing_required_claims(self):
-        with pytest.raises(ValidationError) as err:
-            TIClaims()
-
-        assert "sub" in str(err.value)
+        assert claims.sub == "not-a-uuid"
 
 
 class TestExecutionAPIRoute:
@@ -136,8 +128,8 @@ class TestTokenTypeScopeEnforcement:
         ti_id = self.TI_ID
 
         async def mock_jwt(request: Request):
-            claims = TIClaims(sub=UUID(ti_id), scope=scope)
-            return TIToken(id=claims.sub, claims=claims)
+            claims = TIClaims(scope=scope)
+            return TIToken(id=UUID(ti_id), claims=claims)
 
         app.dependency_overrides[_jwt_bearer] = mock_jwt
 
