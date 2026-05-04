@@ -86,12 +86,13 @@ class ConfigChange:
                 f"`{self.config.option}` configuration parameter renamed to `{self.renamed_to.option}` "
                 f"in the `{self.config.section}` section."
             )
-        if self.was_removed and not self.remove_if_equals:
-            return (
-                f"Removed{' deprecated' if self.was_deprecated else ''} `{self.config.option}` configuration parameter "
-                f"from `{self.config.section}` section."
-                f"{self.suggestion}"
-            )
+        if self.was_removed:
+            if self.remove_if_equals is None:
+                return self._removed_message()
+
+            value = self._get_option_value(api_client.configs.list())
+            if value == str(self.remove_if_equals):
+                return self._removed_message()
         if self.is_invalid_if is not None:
             value = self._get_option_value(api_client.configs.list())
             if value == self.is_invalid_if:
@@ -108,6 +109,13 @@ class ConfigChange:
                     if option.key == self.config.option:
                         return option.value if isinstance(option.value, str) else str(option.value)
         return None
+
+    def _removed_message(self) -> str:
+        return (
+            f"Removed{' deprecated' if self.was_deprecated else ''} `{self.config.option}` configuration parameter "
+            f"from `{self.config.section}` section."
+            f"{self.suggestion}"
+        )
 
 
 CONFIGS_CHANGES = [
