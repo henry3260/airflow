@@ -22,6 +22,7 @@ import re
 import sys
 
 from airflow.cli.simple_table import AirflowConsole
+from airflow.cli.utils import deprecated_for_airflowctl
 from airflow.providers_manager import ProvidersManager
 from airflow.utils.cli import suppress_logs_and_warning
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
@@ -55,6 +56,7 @@ def provider_get(args):
         raise SystemExit(f"No such provider installed: {args.provider_name}")
 
 
+@deprecated_for_airflowctl("airflowctl providers list")
 @suppress_logs_and_warning
 @providers_configuration_loaded
 def providers_list(args):
