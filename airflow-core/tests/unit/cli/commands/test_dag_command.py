@@ -30,6 +30,7 @@ import msgspec
 import pendulum
 import pytest
 import time_machine
+from airflowctl.api.datamodels.generated import ImportErrorResponse as AirflowCtlImportErrorResponse
 from airflowctl.api.operations import ServerResponseError
 from sqlalchemy import select
 
@@ -468,12 +469,12 @@ class TestCliDags:
         assert sorted(dag_details) == sorted(dag_command.DAG_DETAIL_FIELDS)
 
     @conf_vars({("core", "load_examples"): "false"})
-    def test_cli_list_import_errors(self, get_test_dag, configure_testing_dag_bundle, caplog):
+    def test_cli_list_local_import_errors(self, get_test_dag, configure_testing_dag_bundle, caplog):
         path_to_parse = TEST_DAGS_FOLDER / "test_invalid_cron.py"
         get_test_dag("test_invalid_cron")
 
         args = self.parser.parse_args(
-            ["dags", "list-import-errors", "--output", "yaml", "--bundle-name", "testing"]
+            ["dags", "list-import-errors", "--local", "--output", "yaml", "--bundle-name", "testing"]
         )
         with configure_testing_dag_bundle(path_to_parse):
             with pytest.raises(SystemExit) as err_ctx:
@@ -2049,3 +2050,95 @@ class TestCliDagsApiClientCommands:
         mock_cli_api_client.dags.delete.side_effect = _server_error(404)
         with pytest.raises(ServerResponseError):
             dag_command.dag_delete(self.parser.parse_args(["dags", "delete", "does_not_exist_dag", "--yes"]))
+
+    def test_list_import_errors(self, mock_cli_api_client, stdout_capture):
+        mock_cli_api_client.dags.list_import_errors.return_value.import_errors = [
+            AirflowCtlImportErrorResponse(
+                import_error_id=1,
+                timestamp=datetime(2026, 6, 14, tzinfo=timezone.utc),
+                filename="broken_dag.py",
+                bundle_name="example_dags",
+                stack_trace="invalid syntax",
+            )
+        ]
+        args = self.parser.parse_args(["dags", "list-import-errors", "--output=json"])
+
+        with stdout_capture as temp_stdout:
+            with pytest.raises(SystemExit) as ctx:
+                dag_command.dag_list_import_errors(args)
+
+        assert ctx.value.code == 1
+        assert json.loads(temp_stdout.getvalue()) == [
+            {
+                "bundle_name": "example_dags",
+                "filepath": "broken_dag.py",
+                "error": "invalid syntax",
+            }
+        ]
+        mock_cli_api_client.dags.list_import_errors.assert_called_once_with()
+
+    def test_list_import_errors_empty(self, mock_cli_api_client, stdout_capture):
+        mock_cli_api_client.dags.list_import_errors.return_value.import_errors = []
+        args = self.parser.parse_args(["dags", "list-import-errors", "--output=json"])
+
+        with stdout_capture as temp_stdout:
+            dag_command.dag_list_import_errors(args)
+
+        assert json.loads(temp_stdout.getvalue()) == []
+        mock_cli_api_client.dags.list_import_errors.assert_called_once_with()
+
+    @mock.patch.object(dag_command, "validate_dag_bundle_arg")
+    def test_list_import_errors_filters_bundle(
+        self, mock_validate_dag_bundle_arg, mock_cli_api_client, stdout_capture
+    ):
+        mock_cli_api_client.dags.list_import_errors.return_value.import_errors = [
+            AirflowCtlImportErrorResponse(
+                import_error_id=1,
+                timestamp=datetime(2026, 6, 14, tzinfo=timezone.utc),
+                filename="broken_dag.py",
+                bundle_name="example_dags",
+                stack_trace="invalid syntax",
+            ),
+            AirflowCtlImportErrorResponse(
+                import_error_id=2,
+                timestamp=datetime(2026, 6, 14, tzinfo=timezone.utc),
+                filename="other_broken_dag.py",
+                bundle_name="other_bundle",
+                stack_trace="other invalid syntax",
+            ),
+        ]
+        args = self.parser.parse_args(
+            ["dags", "list-import-errors", "--bundle-name", "example_dags", "--output=json"]
+        )
+
+        with stdout_capture as temp_stdout:
+            with pytest.raises(SystemExit) as ctx:
+                dag_command.dag_list_import_errors(args)
+
+        assert ctx.value.code == 1
+        assert json.loads(temp_stdout.getvalue()) == [
+            {
+                "bundle_name": "example_dags",
+                "filepath": "broken_dag.py",
+                "error": "invalid syntax",
+            }
+        ]
+        mock_validate_dag_bundle_arg.assert_called_once_with(["example_dags"])
+
+    @mock.patch.object(
+        dag_command,
+        "validate_dag_bundle_arg",
+        side_effect=SystemExit("Bundles not found: missing_bundle"),
+    )
+    def test_list_import_errors_rejects_unknown_bundle(
+        self, mock_validate_dag_bundle_arg, mock_cli_api_client
+    ):
+        args = self.parser.parse_args(
+            ["dags", "list-import-errors", "--bundle-name", "missing_bundle", "--output=json"]
+        )
+
+        with pytest.raises(SystemExit, match="Bundles not found: missing_bundle"):
+            dag_command.dag_list_import_errors(args)
+
+        mock_validate_dag_bundle_arg.assert_called_once_with(["missing_bundle"])
+        mock_cli_api_client.dags.list_import_errors.assert_not_called()

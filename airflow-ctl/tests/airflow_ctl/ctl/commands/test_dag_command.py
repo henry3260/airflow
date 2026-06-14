@@ -17,11 +17,16 @@
 from __future__ import annotations
 
 import datetime
+import json
 
 import pytest
 
 from airflowctl.api.client import ClientKind
-from airflowctl.api.datamodels.generated import DAGResponse
+from airflowctl.api.datamodels.generated import (
+    DAGResponse,
+    ImportErrorCollectionResponse,
+    ImportErrorResponse,
+)
 from airflowctl.ctl import cli_parser
 from airflowctl.ctl.commands import dag_command
 
@@ -119,6 +124,35 @@ class TestDagCommands:
         bundle_name="bundle_name",
         is_stale=False,
     )
+
+    def test_list_import_errors_preserves_generated_command_contract(self, api_client_maker, capsys):
+        import_error = ImportErrorResponse(
+            import_error_id=1,
+            timestamp=datetime.datetime(2025, 1, 1, 0, 0, 0),
+            filename="broken_dag.py",
+            bundle_name="bundle_a",
+            stack_trace="invalid syntax",
+        )
+        response = ImportErrorCollectionResponse(import_errors=[import_error], total_entries=1)
+        api_client = api_client_maker(
+            path="/api/v2/importErrors",
+            response_json=response.model_dump(mode="json"),
+            expected_http_status_code=200,
+            kind=ClientKind.CLI,
+        )
+        args = self.parser.parse_args(["dags", "list-import-errors", "--output", "json"])
+
+        args.func(args, api_client=api_client)
+
+        assert json.loads(capsys.readouterr().out) == [
+            {
+                "import_error_id": "1",
+                "timestamp": "2025-01-01T00:00:00",
+                "filename": "broken_dag.py",
+                "bundle_name": "bundle_a",
+                "stack_trace": "invalid syntax",
+            }
+        ]
 
     def test_pause_dag(self, api_client_maker, monkeypatch):
         api_client = api_client_maker(

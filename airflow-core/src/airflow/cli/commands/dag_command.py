@@ -632,57 +632,67 @@ def dag_details(args, *, session: Session = NEW_SESSION):
 
 
 @cli_utils.action_cli
+@deprecated_for_airflowctl("airflowctl dags list-import-errors")
 @suppress_logs_and_warning
 @providers_configuration_loaded
-@provide_session
-def dag_list_import_errors(args, *, session: Session = NEW_SESSION) -> None:
-    """Display dags with import errors on the command line."""
+def dag_list_import_errors(args) -> None:
+    """Display Dags with import errors on the command line."""
+    if args.local:
+        _list_local_import_errors(args)
+    else:
+        _list_import_errors_from_api(args)
+
+
+def _list_local_import_errors(args) -> None:
+    """Display locally parsed Dag import errors."""
     data = []
 
-    if args.local:
-        # Get import errors from local areas
+    if args.bundle_name:
+        manager = DagBundlesManager()
+        validate_dag_bundle_arg(args.bundle_name)
+        all_bundles = list(manager.get_all_dag_bundles())
+        bundles_to_search = set(args.bundle_name)
 
-        if args.bundle_name:
-            manager = DagBundlesManager()
-            validate_dag_bundle_arg(args.bundle_name)
-            all_bundles = list(manager.get_all_dag_bundles())
-            bundles_to_search = set(args.bundle_name)
-
-            for bundle in all_bundles:
-                if bundle.name in bundles_to_search:
-                    bundle_dagbag = BundleDagBag(
-                        bundle.path, bundle_path=bundle.path, bundle_name=bundle.name
-                    )
-                    for filename, errors in bundle_dagbag.import_errors.items():
-                        data.append({"bundle_name": bundle.name, "filepath": filename, "error": errors})
-        else:
-            dagbag = DagBag()
-            for filename, errors in dagbag.import_errors.items():
-                data.append({"filepath": filename, "error": errors})
-
+        for bundle in all_bundles:
+            if bundle.name in bundles_to_search:
+                bundle_dagbag = BundleDagBag(bundle.path, bundle_path=bundle.path, bundle_name=bundle.name)
+                for filename, errors in bundle_dagbag.import_errors.items():
+                    data.append({"bundle_name": bundle.name, "filepath": filename, "error": errors})
     else:
-        # Get import errors from the DB
-        query = select(ParseImportError)
-        if args.bundle_name:
-            validate_dag_bundle_arg(args.bundle_name)
-            query = query.where(ParseImportError.bundle_name.in_(args.bundle_name))
+        dagbag = DagBag()
+        for filename, errors in dagbag.import_errors.items():
+            data.append({"filepath": filename, "error": errors})
 
-        dagbag_import_errors = session.scalars(query).all()
-
-        for import_error in dagbag_import_errors:
-            data.append(
-                {
-                    "bundle_name": import_error.bundle_name or "",
-                    "filepath": import_error.filename or "",
-                    "error": import_error.stacktrace or "",
-                }
-            )
     AirflowConsole().print_as(
         data=data,
         output=args.output,
     )
     if data:
         sys.exit(1)
+
+
+@provide_api_client
+def _list_import_errors_from_api(args, api_client: Client = NEW_API_CLIENT) -> None:
+    """Display Dag import errors through the Public API."""
+    if args.bundle_name:
+        validate_dag_bundle_arg(args.bundle_name)
+
+    import_errors = api_client.dags.list_import_errors().import_errors
+    if args.bundle_name:
+        bundle_names = set(args.bundle_name)
+        import_errors = [error for error in import_errors if error.bundle_name in bundle_names]
+
+    data = [
+        {
+            "bundle_name": import_error.bundle_name or "",
+            "filepath": import_error.filename or "",
+            "error": import_error.stack_trace or "",
+        }
+        for import_error in import_errors
+    ]
+    AirflowConsole().print_as(data=data, output=args.output)
+    if data:
+        raise SystemExit(1)
 
 
 @cli_utils.action_cli
